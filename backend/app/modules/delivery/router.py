@@ -6,6 +6,7 @@ from app.modules.delivery import schemas
 from app.modules.delivery.service import DeliveryService
 from app.modules.auth.models import User
 from uuid import UUID
+from fastapi import File, UploadFile
 
 router = APIRouter()
 
@@ -94,3 +95,24 @@ async def driver_history(
     db: AsyncSession = Depends(get_db)
 ):
     return await DeliveryService.get_driver_history(db, driver_id)
+
+@router.post("/upload", response_model=dict)
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_role("super_admin", "manager", "driver")),
+):
+    import os, uuid
+    from app.core.config import settings
+
+    upload_dir = settings.UPLOAD_DIR
+    os.makedirs(upload_dir, exist_ok=True)
+
+    ext = os.path.splitext(file.filename)[1] if file.filename else '.jpg'
+    new_name = f"cod_{uuid.uuid4().hex}{ext}"
+    file_path = os.path.join(upload_dir, new_name)
+
+    with open(file_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+
+    return {"url": f"/uploads/{new_name}"}

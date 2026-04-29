@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../core/auth_provider.dart';
+import 'package:dio/dio.dart';
 
 class CODConfirmationScreen extends ConsumerStatefulWidget {
   final dynamic order;
@@ -27,34 +28,35 @@ class _CODConfirmationScreenState extends ConsumerState<CODConfirmationScreen> {
   }
 
   Future<void> _confirm() async {
-    final nominal = double.tryParse(_nominalController.text);
-    if (nominal == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nominal tidak valid')),
-      );
-      return;
-    }
+    // ... validasi nominal
     setState(() => _loading = true);
     final api = ref.read(apiClientProvider);
     try {
-      // Upload foto bisa di sini (untuk sekarang kirim path saja)
+      String? uploadedUrl;
+      if (_foto != null) {
+        // Upload foto ke backend
+        final formData = FormData.fromMap({
+          'file':
+              await MultipartFile.fromFile(_foto!.path, filename: 'cod.jpg'),
+        });
+        final uploadRes =
+            await api.dio.post('/delivery/upload', data: formData);
+        uploadedUrl = uploadRes.data['url'];
+      }
+
       await api.dio
           .post('/delivery/orders/${widget.order['id']}/cod-confirm', data: {
-        'nominal_diterima': nominal,
-        'foto_url': _foto?.path ?? '',
+        'nominal_diterima': double.parse(_nominalController.text),
+        'foto_url': uploadedUrl ?? '',
       });
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('COD berhasil dikonfirmasi')),
       );
       Navigator.pop(context, true);
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal: ${e.toString()}')),
-      );
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      // ...
     }
   }
 

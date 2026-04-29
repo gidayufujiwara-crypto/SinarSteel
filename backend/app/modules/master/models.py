@@ -67,6 +67,7 @@ class Produk(Base):
     satuan_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("satuan.id"))
     harga_beli: Mapped[Decimal] = mapped_column(Numeric(15,2), default=0)
     harga_jual: Mapped[Decimal] = mapped_column(Numeric(15,2), default=0)
+    hpp_rata_rata: Mapped[Decimal] = mapped_column(Numeric(15,2), default=0)   # ← BARU
     stok: Mapped[int] = mapped_column(Integer, default=0)
     stok_minimum: Mapped[int] = mapped_column(Integer, default=5)
     is_active: Mapped[bool] = mapped_column(default=True)

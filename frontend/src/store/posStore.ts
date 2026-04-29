@@ -8,6 +8,7 @@ export interface CartItem {
   harga_jual: number
   qty: number
   diskon_per_item: number
+  hpp_rata_rata: number   // ← BARU
 }
 
 interface PosState {
@@ -66,6 +67,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           harga_jual: Number(product.harga_jual),
           qty: 1,
           diskon_per_item: 0,
+          hpp_rata_rata: Number(product.hpp_rata_rata || 0),  // ← BARU
         }],
       })
     }
@@ -112,14 +114,9 @@ export const usePosStore = create<PosState>((set, get) => ({
   },
 
   openShift: async (saldoAwal) => {
-  try {
     const res = await posApi.openShift({ saldo_awal: saldoAwal })
     set({ shift: res.data })
-  } catch (err) {
-    console.error('Gagal membuka shift:', err)
-    throw err // lempar agar bisa ditangkap di komponen
-  }
-},
+  },
 
   closeShift: async (totalSetoran) => {
     try {

@@ -1,63 +1,72 @@
 import uuid
 from datetime import datetime, date
-from typing import List, Optional
 from decimal import Decimal
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, func, and_
+from sqlalchemy import select, update, func
 from app.modules.wms.models import PurchaseOrder, PurchaseOrderItem, StockMutation, StockOpname
 from app.modules.master.models import Produk, Supplier
 from app.modules.auth.models import User
-
-def generate_no_po():
-    today = date.today().strftime("%Y%m%d")
-    # Akan digabung dengan count di DB, sementara gunakan timestamp
-    return f"PO-{today}-{uuid.uuid4().hex[:4].upper()}"
+from uuid import UUID
 
 class WmsService:
-    # ---------- Purchase Order ----------
+    # ... method lain tetap ...
+
     @staticmethod
-    async def create_po(db: AsyncSession, data: dict, user: User) -> PurchaseOrder:
-        no_po = generate_no_po()
-        supplier_id = data["supplier_id"]
-        items_data = data["items"]
+    async def update_hpp(db: AsyncSession, produk_id: uuid.UUID, qty_masuk: int, harga_beli: Decimal):
+        produk = await db.get(Produk, produk_id)
+        if not produk:
+            return
+        stok_sebelum = produk.stok - qty_masuk
+        if stok_sebelum < 0:
+            stok_sebelum = 0
+        total_lama = stok_sebelum * produk.hpp_rata_rata
+        total_baru = qty_masuk * harga_beli
+        total_stok = produk.stok
+        if total_stok > 0:
+            produk.hpp_rata_rata = (total_lama + total_baru) / total_stok
+        else:
+            produk.hpp_rata_rata = harga_beli
 
-        total = Decimal(0)
-        item_list = []
-        for it in items_data:
-            produk = await db.get(Produk, it["produk_id"])
-            if not produk:
-                raise ValueError(f"Produk {it['produk_id']} tidak ditemukan")
-            harga = it["harga_satuan"]
-            qty = it["qty_order"]
-            subtotal = harga * qty
-            total += subtotal
-            item_list.append({
-                "produk_id": it["produk_id"],
-                "qty_order": qty,
-                "harga_satuan": harga,
-                "subtotal": subtotal,
-            })
+    @staticmethod
+    async def receive_po(db: AsyncSession, po_id: uuid.UUID, receive_data: dict, user: User) -> PurchaseOrder:
+        po = await WmsService.get_po_by_id(db, po_id)
+        if not po:
+            raise ValueError("PO tidak ditemukan")
+        if po.status not in ("ordered", "partial", "draft"):
+            raise ValueError(f"PO dengan status '{po.status}' tidak dapat diterima")
 
-        po = PurchaseOrder(
-            no_po=no_po,
-            supplier_id=supplier_id,
-            status="draft",
-            total=total,
-            catatan=data.get("catatan"),
-            created_by=user.id,
-        )
-        db.add(po)
-        await db.flush()
+        items_receive = receive_data["items"]
+        receive_map = {UUID(item["item_id"]): item["qty_received"] for item in items_receive}
 
-        for item in item_list:
-            pi = PurchaseOrderItem(
-                po_id=po.id,
-                produk_id=item["produk_id"],
-                qty_order=item["qty_order"],
-                harga_satuan=item["harga_satuan"],
-                subtotal=item["subtotal"],
-            )
-            db.add(pi)
+        all_received = True
+        for item in po.items:
+            if item.id in receive_map:
+                qty = receive_map[item.id]
+                item.qty_received += qty
+                produk = await db.get(Produk, item.produk_id)
+                if produk:
+                    produk.stok += qty
+                    # Update HPP rata-rata
+                    await WmsService.update_hpp(db, item.produk_id, qty, item.harga_satuan)
+                # Catat mutasi masuk
+                mutasi = StockMutation(
+                    produk_id=item.produk_id,
+                    tipe="masuk",
+                    qty=qty,
+                    referensi=f"PO-{po.no_po}",
+                    keterangan="Penerimaan PO",
+                    created_by=user.id,
+                )
+                db.add(mutasi)
+            if item.qty_received < item.qty_order:
+                all_received = False
+
+        if all_received:
+            po.status = "received"
+            po.tanggal_diterima = datetime.utcnow()
+        else:
+            po.status = "partial"
 
         await db.commit()
         await db.refresh(po)

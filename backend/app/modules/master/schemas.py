@@ -131,6 +131,7 @@ class ProdukResponse(BaseModel):
     satuan_id: Optional[UUID]
     harga_beli: Decimal
     harga_jual: Decimal
+    hpp_rata_rata: Decimal   # ← BARU
     stok: int
     stok_minimum: int
     is_active: bool

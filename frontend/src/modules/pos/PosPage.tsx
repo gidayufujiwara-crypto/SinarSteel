@@ -23,11 +23,9 @@ const PosPage: React.FC = () => {
   const [transactions, setTransactions] = useState<any[]>([])
   const [showTransactions, setShowTransactions] = useState(false)
 
-  // Untuk memilih pelanggan kredit
   const [pelangganList, setPelangganList] = useState<any[]>([])
   const [selectedPelanggan, setSelectedPelanggan] = useState('')
 
-  // Modal buka/tutup shift
   const [showShiftModal, setShowShiftModal] = useState<'buka' | 'tutup' | null>(null)
   const [shiftInputValue, setShiftInputValue] = useState('')
 
@@ -48,7 +46,6 @@ const PosPage: React.FC = () => {
   const grandTotal = cartTotal - store.diskon_total
   const kembalian = store.jenis_pembayaran === 'tunai' ? store.bayar - grandTotal : 0
 
-  // ── Buka / Tutup shift dengan modal ──
   const handleOpenShiftSubmit = async () => {
     const saldo = parseFloat(shiftInputValue)
     if (isNaN(saldo)) return
@@ -99,7 +96,6 @@ const PosPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header POS */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-text-primary font-orbitron tracking-[2px] uppercase">
           POS KASIR
@@ -132,7 +128,6 @@ const PosPage: React.FC = () => {
 
       {store.shift && (
         <div className="flex gap-4 flex-1 overflow-hidden">
-          {/* Panel Kiri – Cari Produk & Keranjang */}
           <div className="flex-1 flex flex-col gap-4 overflow-auto">
             <Card title="CARI PRODUK" glow="cyan">
               <div className="flex gap-2 mb-4">
@@ -151,7 +146,12 @@ const PosPage: React.FC = () => {
                     <div key={p.id} className="flex items-center justify-between bg-[#0a1520] border border-[rgba(0,245,255,0.1)] p-2 rounded">
                       <div>
                         <p className="text-sm font-semibold">{p.nama}</p>
-                        <p className="text-xs text-text-dim">{p.sku} - Rp {Number(p.harga_jual).toLocaleString()}</p>
+                        <p className="text-xs text-text-dim">
+                          {p.sku} - Rp {Number(p.harga_jual).toLocaleString()} 
+                          {p.hpp_rata_rata > 0 && (
+                            <span className="text-[var(--neon-orange)]"> | HPP: Rp {Number(p.hpp_rata_rata).toLocaleString()}</span>
+                          )}
+                        </p>
                       </div>
                       <Button onClick={() => store.addToCart(p)}><Plus className="w-4 h-4" /></Button>
                     </div>
@@ -175,14 +175,21 @@ const PosPage: React.FC = () => {
                     <span className="text-sm w-6 text-center font-mono">{item.qty}</span>
                     <button onClick={() => store.updateQty(item.produk_id, item.qty + 1)} className="text-text-dim hover:text-neon-cyan"><Plus className="w-4 h-4" /></button>
                   </div>
-                  <div className="w-20 text-right">
+                  <div className="w-20 text-right relative">
                     <input
                       type="number"
                       value={item.diskon_per_item}
                       onChange={e => store.updateDiskonItem(item.produk_id, Number(e.target.value))}
-                      className="input-neon w-16 text-xs px-1 py-0"
+                      className={`input-neon w-16 text-xs px-1 py-0 ${
+                        item.hpp_rata_rata > 0 && (item.harga_jual - item.diskon_per_item) < item.hpp_rata_rata
+                          ? 'border-[var(--neon-pink)]'
+                          : ''
+                      }`}
                       placeholder="Diskon"
                     />
+                    {item.hpp_rata_rata > 0 && (item.harga_jual - item.diskon_per_item) < item.hpp_rata_rata && (
+                      <span className="absolute -top-2 -right-2 text-[var(--neon-pink)] text-xs" title="Di bawah HPP!">⚠️</span>
+                    )}
                   </div>
                   <div className="w-24 text-right font-mono text-sm text-neon-yellow">
                     Rp {((item.harga_jual - item.diskon_per_item) * item.qty).toLocaleString()}
@@ -193,7 +200,6 @@ const PosPage: React.FC = () => {
             </Card>
           </div>
 
-          {/* Panel Kanan – Ringkasan & Pembayaran */}
           <div className="w-80 flex flex-col gap-4">
             <Card title="RINGKASAN" glow="yellow">
               <div className="space-y-2 text-sm font-semibold">
@@ -287,7 +293,6 @@ const PosPage: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Konfirmasi Pembayaran */}
       <Modal
         open={showPayment}
         onClose={() => setShowPayment(false)}
@@ -301,7 +306,6 @@ const PosPage: React.FC = () => {
         {store.error && <p className="text-[var(--neon-pink)] mt-2">{store.error}</p>}
       </Modal>
 
-      {/* Modal Riwayat & Void */}
       <Modal
         open={showTransactions}
         onClose={() => setShowTransactions(false)}
@@ -342,7 +346,6 @@ const PosPage: React.FC = () => {
         )}
       </Modal>
 
-      {/* Modal Buka/Tutup Shift */}
       <Modal
         open={showShiftModal !== null}
         onClose={() => setShowShiftModal(null)}

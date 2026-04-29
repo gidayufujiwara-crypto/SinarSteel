@@ -11,7 +11,7 @@ const ProdukForm: React.FC = () => {
   const navigate = useNavigate()
   const [form, setForm] = useState({
     sku: '', nama: '', deskripsi: '', barcode: '', kategori_id: '',
-    supplier_id: '', satuan_id: '', harga_beli: '', harga_jual: '', stok_minimum: 5, is_active: true,
+    supplier_id: '', satuan_id: '', harga_beli: '', harga_jual: '', hpp_rata_rata: 0, stok_minimum: 5, is_active: true,
   })
   const [kategori, setKategori] = useState<any[]>([])
   const [supplier, setSupplier] = useState<any[]>([])
@@ -33,7 +33,7 @@ const ProdukForm: React.FC = () => {
           sku: d.sku, nama: d.nama, deskripsi: d.deskripsi || '', barcode: d.barcode || '',
           kategori_id: d.kategori_id || '', supplier_id: d.supplier_id || '', satuan_id: d.satuan_id || '',
           harga_beli: d.harga_beli?.toString() || '', harga_jual: d.harga_jual?.toString() || '',
-          stok_minimum: d.stok_minimum ?? 5, is_active: d.is_active,
+          hpp_rata_rata: d.hpp_rata_rata || 0, stok_minimum: d.stok_minimum ?? 5, is_active: d.is_active,
         })
       }
     }
@@ -60,6 +60,7 @@ const ProdukForm: React.FC = () => {
       kategori_id: form.kategori_id || null,
       supplier_id: form.supplier_id || null,
       satuan_id: form.satuan_id || null,
+      hpp_rata_rata: undefined, // jangan kirim hpp_rata_rata karena readonly
     }
     try {
       if (id) {
@@ -110,7 +111,14 @@ const ProdukForm: React.FC = () => {
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
-          <Input label="Harga Beli" name="harga_beli" type="number" step="0.01" value={form.harga_beli} onChange={handleChange} required />
+          <div>
+            <Input label="Harga Beli" name="harga_beli" type="number" step="0.01" value={form.harga_beli} onChange={handleChange} required />
+            {id && form.hpp_rata_rata > 0 && (
+              <p className="text-xs text-text-dim mt-1">
+                HPP Rata‑rata saat ini: <span className="text-[var(--neon-orange)]">Rp {Number(form.hpp_rata_rata).toLocaleString()}</span>
+              </p>
+            )}
+          </div>
           <Input label="Harga Jual" name="harga_jual" type="number" step="0.01" value={form.harga_jual} onChange={handleChange} required />
         </div>
         <Input label="Stok Minimum" name="stok_minimum" type="number" value={form.stok_minimum} onChange={handleChange} />

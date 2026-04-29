@@ -107,7 +107,16 @@ class TransaksiService:
                 raise ValueError(f"Stok produk {produk.nama} tidak mencukupi")
             harga = produk.harga_jual
             diskon = item.get("diskon_per_item", 0)
-            subtotal = (harga - diskon) * item["qty"]
+            harga_setelah_diskon = harga - diskon
+
+            # ========== VALIDASI HPP ==========
+            if harga_setelah_diskon < produk.hpp_rata_rata:
+                raise ValueError(
+                    f"Harga bersih untuk produk {produk.nama} setelah diskon tidak boleh di bawah HPP rata‑rata (Rp {produk.hpp_rata_rata:,.2f})"
+                )
+            # ================================
+
+            subtotal = harga_setelah_diskon * item["qty"]
             total_sebelum += subtotal
             item_list.append({
                 "produk_id": item["produk_id"],
@@ -175,37 +184,6 @@ class TransaksiService:
             )
             db.add(ti)
 
-        await db.commit()
-        await db.refresh(transaksi)
-        return transaksi
-
-    @staticmethod
-    async def void_transaksi(db: AsyncSession, transaksi_id: uuid.UUID, password: str, current_user: User) -> Transaksi:
-        result = await db.execute(
-            select(Transaksi).where(Transaksi.id == transaksi_id)
-        )
-        transaksi = result.scalar_one_or_none()
-        if not transaksi:
-            raise ValueError("Transaksi tidak ditemukan")
-        if transaksi.status == "void":
-            raise ValueError("Transaksi sudah di-void")
-
-        if not verify_password(password, current_user.password_hash):
-            raise ValueError("Password otorisasi salah")
-        if current_user.role not in ("super_admin", "manager"):
-            raise ValueError("Anda tidak memiliki wewenang untuk void transaksi")
-
-        for item in transaksi.items:
-            produk = await db.get(Produk, item.produk_id)
-            if produk:
-                produk.stok += item.qty
-
-        if transaksi.jenis_pembayaran == "kredit" and transaksi.pelanggan_id:
-            pelanggan = await db.get(Pelanggan, transaksi.pelanggan_id)
-            if pelanggan:
-                pelanggan.saldo_kredit = (pelanggan.saldo_kredit or 0) - transaksi.total_setelah_diskon
-
-        transaksi.status = "void"
         await db.commit()
         await db.refresh(transaksi)
         return transaksi

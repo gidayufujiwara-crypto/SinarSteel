@@ -68,13 +68,13 @@ class Produk(Base):
     harga_beli: Mapped[Decimal] = mapped_column(Numeric(15,2), default=0)
     harga_jual: Mapped[Decimal] = mapped_column(Numeric(15,2), default=0)
     hpp_rata_rata: Mapped[Decimal] = mapped_column(Numeric(15,2), default=0)   # ← BARU
+    markup_persen: Mapped[Decimal] = mapped_column(Numeric(5,2), default=0)
     stok: Mapped[int] = mapped_column(Integer, default=0)
     stok_minimum: Mapped[int] = mapped_column(Integer, default=5)
     is_active: Mapped[bool] = mapped_column(default=True)
     gambar_url: Mapped[Optional[str]] = mapped_column(String(300))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
     kategori: Mapped[Optional[Kategori]] = relationship(back_populates="produk")
     supplier: Mapped[Optional[Supplier]] = relationship(back_populates="produk")
     satuan: Mapped[Optional[Satuan]] = relationship(back_populates="produk")

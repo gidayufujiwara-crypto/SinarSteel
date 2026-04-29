@@ -1,4 +1,6 @@
-﻿from fastapi import APIRouter, Depends, Query, HTTPException, status
+﻿from uuid import UUID
+from decimal import Decimal
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.core.dependencies import get_db, get_current_user, require_role
@@ -213,3 +215,17 @@ async def delete_produk(
     success = await ProdukService.delete(db, id)
     if not success:
         raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+
+@router.put("/produk/{id}/stok", response_model=schemas.ProdukResponse)
+async def update_stok(
+    id: UUID,
+    tambah_stok: int = Query(..., gt=0),
+    harga_beli: Decimal = Query(..., gt=0),
+    markup_persen: Decimal = Query(0, ge=0),
+    current_user: User = Depends(require_role("super_admin", "manager")),
+    db: AsyncSession = Depends(get_db)
+):
+    produk = await ProdukService.update_stok_dan_harga(db, id, tambah_stok, harga_beli, markup_persen)
+    if not produk:
+        raise HTTPException(status_code=404, detail="Produk tidak ditemukan")
+    return produk

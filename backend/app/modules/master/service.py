@@ -1,7 +1,8 @@
 import uuid
 from typing import List, Optional
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, update, delete
+from sqlalchemy import select, or_, update
 from app.modules.master.models import Kategori, Supplier, Pelanggan, Satuan, Produk
 
 # ---------- KATEGORI ----------
@@ -190,3 +191,29 @@ class ProdukService:
         await db.delete(obj)
         await db.commit()
         return True
+
+    @staticmethod
+    async def update_stok_dan_harga(db: AsyncSession, id: uuid.UUID, tambah_stok: int, harga_beli: Decimal, markup_persen: Decimal) -> Optional[Produk]:
+        produk = await db.get(Produk, id)
+        if not produk:
+            return None
+
+        # Hitung HPP baru
+        total_lama = produk.stok * produk.hpp_rata_rata
+        total_baru = tambah_stok * harga_beli
+        stok_baru = produk.stok + tambah_stok
+        if stok_baru > 0:
+            hpp_baru = (total_lama + total_baru) / stok_baru
+        else:
+            hpp_baru = harga_beli
+
+        produk.hpp_rata_rata = hpp_baru
+        produk.stok = stok_baru
+
+        if markup_persen > 0:
+            produk.harga_jual = hpp_baru * (1 + markup_persen / 100)
+
+        produk.markup_persen = markup_persen
+        await db.commit()
+        await db.refresh(produk)
+        return produk

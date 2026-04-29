@@ -104,6 +104,7 @@ class ProdukCreate(BaseModel):
     satuan_id: Optional[UUID] = None
     harga_beli: Decimal = Field(..., max_digits=15, decimal_places=2)
     harga_jual: Decimal = Field(..., max_digits=15, decimal_places=2)
+    markup_persen: Decimal = Field(0, ge=0)
     stok: int = Field(0, ge=0)                           
     stok_minimum: int = Field(5, ge=0)
     is_active: bool = True
@@ -118,6 +119,7 @@ class ProdukUpdate(BaseModel):
     satuan_id: Optional[UUID] = None
     harga_beli: Optional[Decimal] = None
     harga_jual: Optional[Decimal] = None
+    markup_persen: Optional[Decimal] = Field(None, ge=0)
     stok: Optional[int] = Field(None, ge=0)              
     stok_minimum: Optional[int] = Field(None, ge=0)
     is_active: Optional[bool] = None
@@ -133,6 +135,7 @@ class ProdukResponse(BaseModel):
     satuan_id: Optional[UUID]
     harga_beli: Decimal
     harga_jual: Decimal
+    markup_persen: Decimal
     hpp_rata_rata: Decimal   # ← BARU
     stok: int
     stok_minimum: int

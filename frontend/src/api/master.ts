@@ -1,6 +1,5 @@
 import apiClient from './client'
 
-// ---------- KATEGORI ----------
 export const kategoriApi = {
   getAll: () => apiClient.get('/master/kategori'),
   create: (data: any) => apiClient.post('/master/kategori', data),
@@ -8,7 +7,6 @@ export const kategoriApi = {
   delete: (id: string) => apiClient.delete(`/master/kategori/${id}`),
 }
 
-// ---------- SUPPLIER ----------
 export const supplierApi = {
   getAll: (search?: string) => apiClient.get('/master/supplier', { params: { search } }),
   create: (data: any) => apiClient.post('/master/supplier', data),
@@ -16,7 +14,6 @@ export const supplierApi = {
   delete: (id: string) => apiClient.delete(`/master/supplier/${id}`),
 }
 
-// ---------- PELANGGAN ----------
 export const pelangganApi = {
   getAll: (search?: string) => apiClient.get('/master/pelanggan', { params: { search } }),
   create: (data: any) => apiClient.post('/master/pelanggan', data),
@@ -24,7 +21,6 @@ export const pelangganApi = {
   delete: (id: string) => apiClient.delete(`/master/pelanggan/${id}`),
 }
 
-// ---------- SATUAN ----------
 export const satuanApi = {
   getAll: () => apiClient.get('/master/satuan'),
   create: (data: any) => apiClient.post('/master/satuan', data),
@@ -32,11 +28,14 @@ export const satuanApi = {
   delete: (id: string) => apiClient.delete(`/master/satuan/${id}`),
 }
 
-// ---------- PRODUK ----------
 export const produkApi = {
   getAll: (search?: string) => apiClient.get('/master/produk', { params: { search } }),
   getById: (id: string) => apiClient.get(`/master/produk/${id}`),
   create: (data: any) => apiClient.post('/master/produk', data),
   update: (id: string, data: any) => apiClient.put(`/master/produk/${id}`, data),
   delete: (id: string) => apiClient.delete(`/master/produk/${id}`),
+  updateStok: (id: string, tambahStok: number, hargaBeli: number, markupPersen: number) =>
+    apiClient.put(`/master/produk/${id}/stok`, null, {
+      params: { tambah_stok: tambahStok, harga_beli: hargaBeli, markup_persen: markupPersen }
+    }),
 }

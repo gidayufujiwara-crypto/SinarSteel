@@ -27,6 +27,10 @@ const PosPage: React.FC = () => {
   const [pelangganList, setPelangganList] = useState<any[]>([])
   const [selectedPelanggan, setSelectedPelanggan] = useState('')
 
+  // Modal buka/tutup shift
+  const [showShiftModal, setShowShiftModal] = useState<'buka' | 'tutup' | null>(null)
+  const [shiftInputValue, setShiftInputValue] = useState('')
+
   useEffect(() => {
     store.fetchShift()
     pelangganApi.getAll().then(res => setPelangganList(res.data))
@@ -40,33 +44,33 @@ const PosPage: React.FC = () => {
     } catch (err) { console.error(err) }
   }
 
-  // Kalkulasi total
   const cartTotal = store.cart.reduce((sum, item) => sum + ((item.harga_jual - item.diskon_per_item) * item.qty), 0)
   const grandTotal = cartTotal - store.diskon_total
   const kembalian = store.jenis_pembayaran === 'tunai' ? store.bayar - grandTotal : 0
 
-  // Buka shift dengan prompt saldo awal
-  const handleOpenShift = async () => {
-  const saldoAwalStr = window.prompt('Masukkan Saldo Awal (Rp)', '0')
-  if (saldoAwalStr === null) return
-  const saldoAwal = parseFloat(saldoAwalStr)
-  if (isNaN(saldoAwal)) return
-
-  try {
-    await store.openShift(saldoAwal)
-    // setelah berhasil, state shift sudah berisi → UI berubah
-  } catch (err: any) {
-    alert('Gagal membuka shift: ' + (err.response?.data?.detail || err.message))
+  // ── Buka / Tutup shift dengan modal ──
+  const handleOpenShiftSubmit = async () => {
+    const saldo = parseFloat(shiftInputValue)
+    if (isNaN(saldo)) return
+    try {
+      await store.openShift(saldo)
+      setShowShiftModal(null)
+      setShiftInputValue('')
+    } catch (err: any) {
+      alert('Gagal membuka shift: ' + (err.response?.data?.detail || err.message))
+    }
   }
-}
 
-  // Tutup shift dengan prompt total setoran
-  const handleCloseShift = () => {
-    const setoranStr = window.prompt('Masukkan Total Setoran (Rp)', '0')
-    if (setoranStr === null) return
-    const totalSetoran = parseFloat(setoranStr)
-    if (isNaN(totalSetoran)) return
-    store.closeShift(totalSetoran)
+  const handleCloseShiftSubmit = async () => {
+    const setoran = parseFloat(shiftInputValue)
+    if (isNaN(setoran)) return
+    try {
+      await store.closeShift(setoran)
+      setShowShiftModal(null)
+      setShiftInputValue('')
+    } catch (err: any) {
+      alert('Gagal menutup shift: ' + (err.response?.data?.detail || err.message))
+    }
   }
 
   const handleSubmit = async () => {
@@ -105,12 +109,12 @@ const PosPage: React.FC = () => {
             <div className="flex items-center gap-2 text-neon-green font-semibold">
               <LogIn className="w-4 h-4" />
               <span className="text-sm font-orbitron">SHIFT AKTIF</span>
-              <Button variant="secondary" onClick={handleCloseShift}>
+              <Button variant="secondary" onClick={() => { setShowShiftModal('tutup'); setShiftInputValue('0') }}>
                 <LogOut className="w-4 h-4 mr-1" /> TUTUP SHIFT
               </Button>
             </div>
           ) : (
-            <Button onClick={handleOpenShift}>
+            <Button onClick={() => { setShowShiftModal('buka'); setShiftInputValue('0') }}>
               <LogIn className="w-4 h-4 mr-1" /> BUKA SHIFT
             </Button>
           )}
@@ -336,6 +340,28 @@ const PosPage: React.FC = () => {
             </Button>
           </div>
         )}
+      </Modal>
+
+      {/* Modal Buka/Tutup Shift */}
+      <Modal
+        open={showShiftModal !== null}
+        onClose={() => setShowShiftModal(null)}
+        title={showShiftModal === 'buka' ? 'BUKA SHIFT' : 'TUTUP SHIFT'}
+        onConfirm={showShiftModal === 'buka' ? handleOpenShiftSubmit : handleCloseShiftSubmit}
+        confirmText="SIMPAN"
+      >
+        <div className="space-y-3">
+          <p className="text-text-dim text-sm">
+            {showShiftModal === 'buka' ? 'Masukkan saldo awal kasir:' : 'Masukkan total setoran fisik:'}
+          </p>
+          <Input
+            label={showShiftModal === 'buka' ? 'Saldo Awal (Rp)' : 'Total Setoran (Rp)'}
+            type="number"
+            value={shiftInputValue}
+            onChange={e => setShiftInputValue(e.target.value)}
+            autoFocus
+          />
+        </div>
       </Modal>
     </div>
   )

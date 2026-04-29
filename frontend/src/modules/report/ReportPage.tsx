@@ -4,6 +4,7 @@ import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 import { reportApi } from '../../api/report'
 import { Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 
 const ReportPage: React.FC = () => {
   const [sales, setSales] = useState<any[]>([])
@@ -24,18 +25,21 @@ const ReportPage: React.FC = () => {
 
   useEffect(() => { fetchSales() }, [])
 
-  const exportCSV = () => {
-    let csv = 'No Transaksi,Tanggal,Kasir,Pelanggan,Total,Pembayaran\n'
-    sales.forEach((item: any) => {
-      csv += `${item.no_transaksi},${new Date(item.tanggal).toLocaleDateString('id-ID')},${item.kasir},${item.pelanggan},${Number(item.total).toFixed(2)},${item.jenis_pembayaran}\n`
-    })
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `laporan_penjualan_${startDate}_${endDate}.csv`
-    a.click()
-  }
+  const exportExcel = () => {
+  const worksheet = XLSX.utils.json_to_sheet(
+    sales.map((item: any) => ({
+      'No Transaksi': item.no_transaksi,
+      'Tanggal': new Date(item.tanggal).toLocaleDateString('id-ID'),
+      'Kasir': item.kasir,
+      'Pelanggan': item.pelanggan,
+      'Total': Number(item.total),
+      'Pembayaran': item.jenis_pembayaran,
+    }))
+  )
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Penjualan')
+  XLSX.writeFile(workbook, `laporan_penjualan_${startDate}_${endDate}.xlsx`)
+}
 
   return (
     <div>
@@ -47,8 +51,8 @@ const ReportPage: React.FC = () => {
           <Input label="Tanggal Mulai" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
           <Input label="Tanggal Akhir" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
           <Button onClick={fetchSales}>FILTER</Button>
-          <Button variant="secondary" onClick={exportCSV} disabled={sales.length === 0}>
-            <Download className="w-4 h-4 mr-1" /> EXPORT CSV
+          <Button variant="secondary" onClick={exportExcel} disabled={sales.length === 0}>
+            <Download className="w-4 h-4 mr-1" /> EXPORT EXCEL
           </Button>
         </div>
         <div className="overflow-x-auto">

@@ -25,6 +25,7 @@ import DeliveryPage from '../modules/delivery/DeliveryPage'
 import DeliveryOrderList from '../modules/delivery/DeliveryOrderList'
 import DeliveryOrderForm from '../modules/delivery/DeliveryOrderForm'
 import SettingsPage from '../modules/settings/SettingsPage'
+import KategoriSatuanList from '../modules/master/KategoriSatuanList'
 
 const DashboardPage = lazy(() => import('../modules/dashboard/DashboardPage'))
 const PosPage = lazy(() => import('../modules/pos/PosPage'))
@@ -54,10 +55,9 @@ const AppRouter = () => (
           <Route path="produk" element={<ProdukList />} />
           <Route path="produk/tambah" element={<ProdukForm />} />
           <Route path="produk/edit/:id" element={<ProdukForm />} />
-          <Route path="kategori" element={<KategoriList />} />
           <Route path="supplier" element={<SupplierList />} />
           <Route path="pelanggan" element={<PelangganList />} />
-          <Route path="satuan" element={<SatuanList />} />
+          <Route path="kategori-satuan" element={<KategoriSatuanList />} />
         </Route>
         <Route path="/wms" element={<WmsPage />}>
           <Route index element={<PurchaseOrderList />} />

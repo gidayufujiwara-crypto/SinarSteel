@@ -1,13 +1,12 @@
 import React from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { Package, Tag, Truck, Users, Ruler } from 'lucide-react'
+import { Package, Tag, Truck, Users } from 'lucide-react'
 
 const tabs = [
   { to: '/master/produk', label: 'Produk', icon: Package },
-  { to: '/master/kategori', label: 'Kategori', icon: Tag },
+  { to: '/master/kategori-satuan', label: 'Kategori & Satuan', icon: Tag },
   { to: '/master/supplier', label: 'Supplier', icon: Truck },
   { to: '/master/pelanggan', label: 'Pelanggan', icon: Users },
-  { to: '/master/satuan', label: 'Satuan', icon: Ruler },
 ]
 
 const MasterLayout: React.FC = () => {

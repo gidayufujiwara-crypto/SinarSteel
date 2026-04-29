@@ -20,30 +20,37 @@ const ProdukForm: React.FC = () => {
   const [satuan, setSatuan] = useState<any[]>([])
   const [pelanggan, setPelanggan] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   // Quick-add state
   const [quickAddType, setQuickAddType] = useState<string | null>(null)
   const [quickAddNama, setQuickAddNama] = useState('')
-  const [quickAddCode, setQuickAddCode] = useState('')  // for supplier/pelanggan kode
+  const [quickAddCode, setQuickAddCode] = useState('')
+
+  const isEdit = Boolean(id)
 
   useEffect(() => {
     const load = async () => {
-      const [kRes, sRes, satRes, pRes] = await Promise.all([
-        kategoriApi.getAll(), supplierApi.getAll(), satuanApi.getAll(), pelangganApi.getAll()
-      ])
-      setKategori(kRes.data)
-      setSupplier(sRes.data)
-      setSatuan(satRes.data)
-      setPelanggan(pRes.data)
-      if (id) {
-        const res = await produkApi.getById(id)
-        const d = res.data
-        setForm({
-          sku: d.sku, nama: d.nama, deskripsi: d.deskripsi || '', barcode: d.barcode || '',
-          kategori_id: d.kategori_id || '', supplier_id: d.supplier_id || '', satuan_id: d.satuan_id || '',
-          harga_beli: d.harga_beli?.toString() || '', harga_jual: d.harga_jual?.toString() || '',
-          stok: d.stok?.toString() || '0', stok_minimum: d.stok_minimum ?? 5, is_active: d.is_active, hpp_rata_rata: d.hpp_rata_rata || 0,
-        })
+      try {
+        const [kRes, sRes, satRes, pRes] = await Promise.all([
+          kategoriApi.getAll(), supplierApi.getAll(), satuanApi.getAll(), pelangganApi.getAll()
+        ])
+        setKategori(kRes.data)
+        setSupplier(sRes.data)
+        setSatuan(satRes.data)
+        setPelanggan(pRes.data)
+        if (id) {
+          const res = await produkApi.getById(id)
+          const d = res.data
+          setForm({
+            sku: d.sku, nama: d.nama, deskripsi: d.deskripsi || '', barcode: d.barcode || '',
+            kategori_id: d.kategori_id || '', supplier_id: d.supplier_id || '', satuan_id: d.satuan_id || '',
+            harga_beli: d.harga_beli?.toString() || '', harga_jual: d.harga_jual?.toString() || '',
+            stok: d.stok?.toString() || '0', stok_minimum: d.stok_minimum ?? 5, is_active: d.is_active, hpp_rata_rata: d.hpp_rata_rata || 0,
+          })
+        }
+      } catch (err) {
+        console.error('Gagal memuat data master', err)
       }
     }
     load()
@@ -60,18 +67,30 @@ const ProdukForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrorMsg(null)
     setLoading(true)
-    const payload = {
-      ...form,
-      harga_beli: parseFloat(form.harga_beli),
-      harga_jual: parseFloat(form.harga_jual),
-      stok: parseInt(form.stok),
-      stok_minimum: parseInt(form.stok_minimum.toString()),
+
+    const payload: any = {
+      sku: form.sku,
+      nama: form.nama,
+      deskripsi: form.deskripsi || null,
+      barcode: form.barcode || null,
       kategori_id: form.kategori_id || null,
       supplier_id: form.supplier_id || null,
       satuan_id: form.satuan_id || null,
+      harga_beli: parseFloat(form.harga_beli) || 0,
+      stok: parseInt(form.stok) || 0,
+      stok_minimum: parseInt(form.stok_minimum.toString()) || 5,
+      is_active: form.is_active,
     }
-    delete (payload as any).hpp_rata_rata
+
+    // Hanya kirim harga_jual jika bukan edit (atau jika field terlihat)
+    if (!isEdit) {
+      payload.harga_jual = parseFloat(form.harga_jual) || 0
+    }
+
+    console.log('Mengirim payload:', payload)
+
     try {
       if (id) {
         await produkApi.update(id, payload)
@@ -79,14 +98,15 @@ const ProdukForm: React.FC = () => {
         await produkApi.create(payload)
       }
       navigate('/master/produk')
-    } catch (err) {
-      console.error(err)
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Gagal menyimpan produk'
+      setErrorMsg(msg)
+      console.error('Error simpan produk:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  // Quick‑add logic
   const openQuickAdd = (type: string) => {
     setQuickAddType(type)
     setQuickAddNama('')
@@ -116,10 +136,10 @@ const ProdukForm: React.FC = () => {
       setQuickAddType(null)
     } catch (err) {
       console.error(err)
+      alert('Gagal menambah data')
     }
   }
 
-  // Helper: render dropdown with quick‑add button
   const renderDropdown = (label: string, name: string, value: string, options: any[], quickType: string) => (
     <div className="relative">
       <label className="text-xs font-semibold tracking-[1px] uppercase text-text-dim">{label}</label>
@@ -148,10 +168,17 @@ const ProdukForm: React.FC = () => {
   )
 
   return (
-    <Card title={id ? 'EDIT PRODUK' : 'TAMBAH PRODUK'} glow="cyan">
+    <Card title={isEdit ? 'EDIT PRODUK' : 'TAMBAH PRODUK'} glow="cyan">
       <button onClick={() => navigate('/master/produk')} className="flex items-center gap-1 text-text-dim hover:text-neon-cyan mb-4">
         <ArrowLeft className="w-4 h-4" /> KEMBALI
       </button>
+
+      {errorMsg && (
+        <div className="mb-4 p-3 bg-red-900/20 border border-red-800 rounded-lg text-red-400 text-sm">
+          {errorMsg}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl">
         <div className="grid grid-cols-2 gap-4">
           <Input label="SKU" name="sku" value={form.sku} onChange={handleChange} required />
@@ -165,9 +192,21 @@ const ProdukForm: React.FC = () => {
           {renderDropdown('Satuan', 'satuan_id', form.satuan_id, satuan, 'satuan')}
         </div>
 
+        {/* Baris Harga + Stok */}
         <div className="grid grid-cols-3 gap-4">
           <Input label="Harga Beli" name="harga_beli" type="number" step="0.01" value={form.harga_beli} onChange={handleChange} required />
-          <Input label="Harga Jual" name="harga_jual" type="number" step="0.01" value={form.harga_jual} onChange={handleChange} required />
+
+          {isEdit ? (
+            <div className="flex flex-col justify-end">
+              <label className="text-xs font-semibold tracking-[1px] uppercase text-text-dim">Harga Jual</label>
+              <div className="input-neon flex items-center text-text-dim">
+                Rp {Number(form.harga_jual).toLocaleString()} <span className="text-xs ml-2">(tidak dapat diubah)</span>
+              </div>
+            </div>
+          ) : (
+            <Input label="Harga Jual" name="harga_jual" type="number" step="0.01" value={form.harga_jual} onChange={handleChange} required />
+          )}
+
           <Input label="Stok" name="stok" type="number" step="1" value={form.stok} onChange={handleChange} required />
         </div>
 

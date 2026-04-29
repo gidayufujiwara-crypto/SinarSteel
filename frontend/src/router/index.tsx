@@ -58,9 +58,12 @@ const AppRouter = () => (
           <Route path="kategori-satuan" element={<KategoriSatuanList />} />
         </Route>
         <Route path="/wms" element={<WmsPage />}>
-          <Route index element={<PurchaseOrderList />} />
+          <Route index element={<InventoryList />} />
+          {/*
           <Route path="po" element={<PurchaseOrderList />} />
-          <Route path="mutation" element={<MutationHistory />} /> <Route path="po/tambah" element={<PurchaseOrderForm />} />
+          <Route path="po/tambah" element={<PurchaseOrderForm />} />
+          */}
+          <Route path="mutation" element={<MutationHistory />} /> 
           <Route path="inventory" element={<InventoryList />} />
           <Route path="opname" element={<StockOpnameList />} />
           <Route path="mutation" element={<MutationHistory />} />

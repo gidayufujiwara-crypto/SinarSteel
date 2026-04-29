@@ -186,6 +186,7 @@ class TransaksiService:
 
         await db.commit()
         await db.refresh(transaksi)
+        await db.refresh(transaksi, attribute_names=['items'])
         return transaksi
 
     @staticmethod

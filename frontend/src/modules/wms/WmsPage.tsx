@@ -1,9 +1,8 @@
 import React from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { Truck, PackageOpen, ClipboardList, Layers3 } from 'lucide-react'
+import { PackageOpen, ClipboardList, Layers3 } from 'lucide-react'
 
 const tabs = [
-  { to: '/wms/po', label: 'Purchase Order', icon: Truck },
   { to: '/wms/inventory', label: 'Stok', icon: Layers3 },
   { to: '/wms/opname', label: 'Stock Opname', icon: ClipboardList },
   { to: '/wms/mutation', label: 'Mutasi', icon: PackageOpen },

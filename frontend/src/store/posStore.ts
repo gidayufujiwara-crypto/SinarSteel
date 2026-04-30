@@ -35,6 +35,9 @@ interface PosState {
   openShift: (saldoAwal: number) => Promise<void>
   closeShift: (totalSetoran: number) => Promise<void>
   submitTransaction: (deliveryData?: any) => Promise<any>
+  requestVoidPin: (transaksiId: string) => Promise<string>
+  verifyVoidPin: (transaksiId: string, pin: string) => Promise<any>
+  returTransaksi: (data: any) => Promise<any>
   reset: () => void
 }
 
@@ -160,6 +163,21 @@ export const usePosStore = create<PosState>((set, get) => ({
       set({ loading: false, error: msg })
       throw err
     }
+  },
+
+  requestVoidPin: async (transaksiId) => {
+    const res = await posApi.requestVoidPin(transaksiId)
+    return res.data.pin
+  },
+
+  verifyVoidPin: async (transaksiId, pin) => {
+    const res = await posApi.verifyVoidPin(transaksiId, pin)
+    return res.data
+  },
+
+  returTransaksi: async (data) => {
+    const res = await posApi.returTransaksi(data)
+    return res.data
   },
 
   reset: () => set({

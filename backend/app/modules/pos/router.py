@@ -1,10 +1,16 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, status
+﻿from uuid import UUID
+from datetime import date
+from sqlalchemy import select, func
+from app.modules.pos.models import Transaksi, VoidPin
+from app.modules.pos.service import TransaksiService, ShiftService, VoidService, ReturService
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.core.dependencies import get_db, get_current_user, require_role
 from app.modules.pos import schemas
 from app.modules.pos.service import ShiftService, TransaksiService
 from app.modules.auth.models import User
+from app.modules.pos.schemas import ReturRequest, VerifyVoidRequest
 
 router = APIRouter()
 
@@ -80,3 +86,60 @@ async def void_transaksi(
         return trx
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+@router.post("/transaksi/{id}/request-void", response_model=schemas.RequestVoidResponse)
+async def request_void(
+    id: UUID,
+    current_user: User = Depends(require_role("super_admin")),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        pin = await VoidService.request_void(db, id, current_user)
+        return {"transaksi_id": id, "pin": pin}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/transaksi/{id}/void", response_model=schemas.TransaksiResponse)
+async def void_transaksi_with_pin(
+    id: UUID,
+    data: schemas.VerifyVoidRequest,
+    current_user: User = Depends(require_role("super_admin")),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        transaksi = await VoidService.verify_void(db, id, data.pin, current_user)
+        return transaksi
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/pending-voids", response_model=List[dict])
+async def get_pending_voids(
+    current_user: User = Depends(require_role("super_admin")),
+    db: AsyncSession = Depends(get_db)
+):
+    return await VoidService.get_pending_voids(db)
+
+@router.post("/retur", response_model=schemas.TransaksiResponse, status_code=201)
+async def retur_transaksi(
+    data: schemas.ReturRequest,
+    current_user: User = Depends(require_role("super_admin", "manager")),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        new_trx = await ReturService.retur_transaksi(db, data.model_dump(), current_user)
+        return new_trx
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@router.get("/transaksi", response_model=List[schemas.TransaksiResponse])
+async def list_transaksi(
+    limit: int = 100,
+    current_user: User = Depends(require_role("super_admin", "manager", "kasir")),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Transaksi).where(func.date(Transaksi.created_at) == date.today())
+        .order_by(Transaksi.created_at.desc())
+        .limit(limit)
+    )
+    return result.scalars().all()

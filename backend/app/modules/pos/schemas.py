@@ -72,3 +72,15 @@ class TransaksiResponse(BaseModel):
 
 class VoidRequest(BaseModel):
     password: str
+
+class RequestVoidResponse(BaseModel):
+    transaksi_id: UUID
+    pin: str
+
+class VerifyVoidRequest(BaseModel):
+    pin: str
+
+class ReturRequest(BaseModel):
+    transaksi_id: UUID
+    items: List[TransaksiItemCreate]
+    diskon_total: Decimal = Field(0, ge=0)

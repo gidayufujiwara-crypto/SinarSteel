@@ -10,7 +10,7 @@ import Modal from '../../components/ui/Modal'
 import StrukModal from '../../components/pos/StrukModal'
 import {
   Search, Plus, Minus, Trash2, LogIn, LogOut,
-  CreditCard, Banknote, QrCode, Wallet, Truck, Store
+  CreditCard, Banknote, QrCode, Wallet, Truck, RefreshCw
 } from 'lucide-react'
 
 const PosPage: React.FC = () => {
@@ -20,7 +20,7 @@ const PosPage: React.FC = () => {
   const [products, setProducts] = useState<any[]>([])
   const [showPayment, setShowPayment] = useState(false)
   const [showVoid, setShowVoid] = useState(false)
-  const [voidPassword, setVoidPassword] = useState('')
+  const [voidPin, setVoidPin] = useState('')
   const [transactions, setTransactions] = useState<any[]>([])
   const [showTransactions, setShowTransactions] = useState(false)
 
@@ -29,6 +29,7 @@ const PosPage: React.FC = () => {
 
   const [showShiftModal, setShowShiftModal] = useState<'buka' | 'tutup' | null>(null)
   const [shiftInputValue, setShiftInputValue] = useState('')
+  const [shiftVariance, setShiftVariance] = useState(0)
 
   const [metodePengiriman, setMetodePengiriman] = useState<'ambil' | 'kurir'>('ambil')
   const [pengirimanForm, setPengirimanForm] = useState({ nama_penerima: '', alamat: '', kota: '', telepon: '' })
@@ -37,6 +38,8 @@ const PosPage: React.FC = () => {
 
   const [strukData, setStrukData] = useState<any>(null)
   const [showStruk, setShowStruk] = useState(false)
+
+  const [returTransaksi, setReturTransaksi] = useState<any>(null)
 
   useEffect(() => {
     store.fetchShift()
@@ -107,19 +110,42 @@ const PosPage: React.FC = () => {
     } catch {}
   }
 
-  const handleVoid = async (id: string) => {
+  const handleVoidRequest = async (transaksiId: string) => {
     try {
-      await posApi.voidTransaksi(id, voidPassword)
+      await posApi.requestVoidPin(transaksiId)
+      alert('PIN void telah dikirim ke aplikasi super admin. Masukkan PIN yang diterima.')
+      setShowVoid(true)
+      setVoidPin('')
+    } catch (err: any) {
+      alert('Gagal request void: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const handleVoidConfirm = async (transaksiId: string) => {
+    try {
+      await posApi.verifyVoidPin(transaksiId, voidPin)
       setShowVoid(false)
-      setVoidPassword('')
-      store.fetchShift()
+      setVoidPin('')
       loadTransactions()
-    } catch (err) { console.error(err) }
+    } catch (err: any) {
+      alert('Gagal void: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const handleRetur = (trx: any) => {
+    const items = trx.items.map((item: any) => ({
+      produk_id: item.produk_id,
+      qty: item.qty,
+      diskon_per_item: 0,
+    }))
+    store.returTransaksi({ transaksi_id: trx.id, items, diskon_total: 0 }).then(() => {
+      loadTransactions()
+    }).catch((err: any) => alert(err.response?.data?.detail || err.message))
   }
 
   const loadTransactions = useCallback(async () => {
     try {
-      const res = await posApi.getTransaksiList(50)
+      const res = await posApi.getTransaksiList(100)
       setTransactions(res.data)
     } catch {}
   }, [])
@@ -127,6 +153,13 @@ const PosPage: React.FC = () => {
   useEffect(() => {
     if (showTransactions) loadTransactions()
   }, [showTransactions, loadTransactions])
+
+  const calculateVariance = () => {
+    if (!store.shift) return
+    const expected = (store.shift.saldo_awal || 0) + (store.shift.total_tunai || 0)
+    const input = parseFloat(shiftInputValue) || 0
+    setShiftVariance(input - expected)
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -160,7 +193,7 @@ const PosPage: React.FC = () => {
 
       {store.shift && (
         <div className="flex gap-4 flex-1 overflow-hidden">
-          <div className="flex-1 flex flex-col gap-4 overflow-auto">
+          <div className="flex-1 flex flex-col gap-4" style={{ maxHeight: 'calc(100vh - 120px)' }}>
             <Card title="CARI PRODUK" glow="cyan">
               <div className="flex gap-2 mb-4">
                 <Input placeholder="Nama / SKU / Barcode..." value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} className="flex-1" />
@@ -181,7 +214,7 @@ const PosPage: React.FC = () => {
               )}
             </Card>
 
-            <Card title={`KERANJANG (${store.cart.length} ITEM)`} glow="cyan" className="flex-1 overflow-auto">
+            <Card title={`KERANJANG (${store.cart.length} ITEM)`} glow="cyan" className="flex-1 overflow-auto max-h-[50vh]">
               {store.cart.length === 0 && <p className="text-center text-text-dim py-8 font-orbitron">KERANJANG KOSONG</p>}
               {store.cart.map(item => (
                 <div key={item.produk_id} className="flex items-center justify-between py-2 border-b border-[rgba(0,245,255,0.08)]">
@@ -296,25 +329,50 @@ const PosPage: React.FC = () => {
               <div>
                 <p className="font-mono text-neon-cyan">{trx.no_transaksi}</p>
                 <p className="text-text-dim">{new Date(trx.created_at).toLocaleString('id-ID')}</p>
-                <p className={`font-semibold ${trx.status === 'void' ? 'text-[var(--neon-pink)]' : 'text-neon-green'}`}>Rp {Number(trx.total_setelah_diskon).toLocaleString()} - {trx.jenis_pembayaran} ({trx.status})</p>
+                <p className={`font-semibold ${trx.status === 'void' ? 'text-[var(--neon-pink)]' : trx.status === 'retur' ? 'text-yellow-400' : 'text-neon-green'}`}>
+                  Rp {Number(trx.total_setelah_diskon).toLocaleString()} - {trx.jenis_pembayaran} ({trx.status})
+                </p>
               </div>
-              {trx.status !== 'void' && (user?.role === 'super_admin' || user?.role === 'manager') && (
-                <Button variant="danger" onClick={() => { setShowVoid(true); setVoidPassword('') }}><Trash2 className="w-3 h-3" /> VOID</Button>
-              )}
+              <div className="flex gap-2">
+                {trx.status !== 'void' && trx.status !== 'retur' && (
+                  <>
+                    {user?.role === 'super_admin' && (
+                      <Button variant="danger" onClick={() => handleVoidRequest(trx.id)}><Trash2 className="w-3 h-3" /> VOID</Button>
+                    )}
+                    {(user?.role === 'super_admin' || user?.role === 'manager') && (
+                      <Button variant="secondary" onClick={() => handleRetur(trx)}><RefreshCw className="w-3 h-3" /> RETUR</Button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
         {showVoid && (
           <div className="mt-4 border-t border-[rgba(0,245,255,0.15)] pt-4">
-            <p className="text-sm text-text-dim mb-2">Masukkan password otorisasi:</p>
-            <Input type="password" value={voidPassword} onChange={e => setVoidPassword(e.target.value)} placeholder="Password..." />
-            <Button variant="danger" className="mt-2 w-full" onClick={() => handleVoid(transactions[0]?.id)}>VOID TRANSAKSI</Button>
+            <p className="text-sm text-text-dim mb-2">Masukkan PIN dari aplikasi super admin:</p>
+            <Input type="text" value={voidPin} onChange={e => setVoidPin(e.target.value)} placeholder="6 digit PIN" maxLength={6} />
+            <Button variant="danger" className="mt-2 w-full" onClick={() => handleVoidConfirm(transactions[0]?.id)}>KONFIRMASI VOID</Button>
           </div>
         )}
       </Modal>
 
       <Modal open={showShiftModal !== null} onClose={() => setShowShiftModal(null)} title={showShiftModal === 'buka' ? 'BUKA SHIFT' : 'TUTUP SHIFT'} onConfirm={showShiftModal === 'buka' ? handleOpenShiftSubmit : handleCloseShiftSubmit} confirmText="SIMPAN">
-        <Input label={showShiftModal === 'buka' ? 'Saldo Awal (Rp)' : 'Total Setoran (Rp)'} type="number" value={shiftInputValue} onChange={e => setShiftInputValue(e.target.value)} autoFocus />
+        <Input
+          label={showShiftModal === 'buka' ? 'Saldo Awal (Rp)' : 'Total Setoran (Rp)'}
+          type="number"
+          value={shiftInputValue}
+          onChange={e => { setShiftInputValue(e.target.value); if (showShiftModal === 'tutup') calculateVariance() }}
+          autoFocus
+        />
+        {showShiftModal === 'tutup' && (
+          <div className="mt-2 text-sm">
+            <p>Seharusnya: Rp {( (store.shift?.saldo_awal || 0) + (store.shift?.total_tunai || 0) ).toLocaleString()}</p>
+            <p className={shiftVariance < 0 ? 'text-[var(--neon-pink)]' : 'text-neon-green'}>
+              Selisih: Rp {shiftVariance.toLocaleString()}
+            </p>
+          </div>
+        )}
       </Modal>
 
       {strukData && <StrukModal open={showStruk} onClose={() => { setShowStruk(false); store.clearCart() }} {...strukData} />}

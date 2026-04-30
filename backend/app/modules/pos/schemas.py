@@ -49,6 +49,7 @@ class TransaksiCreate(BaseModel):
     diskon_total: Decimal = Field(0, ge=0)
     bayar: Optional[Decimal] = None
     catatan: Optional[str] = None
+    delivery: Optional[dict] = None
 
 class TransaksiResponse(BaseModel):
     id: UUID

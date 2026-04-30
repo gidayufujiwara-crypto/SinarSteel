@@ -10,7 +10,7 @@ import Modal from '../../components/ui/Modal'
 import StrukModal from '../../components/pos/StrukModal'
 import {
   Search, Plus, Minus, Trash2, LogIn, LogOut,
-  CreditCard, Banknote, QrCode, Wallet, Truck, RefreshCw
+  CreditCard, Banknote, QrCode, Wallet, Truck, RefreshCw, Eye
 } from 'lucide-react'
 
 const PosPage: React.FC = () => {
@@ -23,6 +23,7 @@ const PosPage: React.FC = () => {
   const [voidPin, setVoidPin] = useState('')
   const [transactions, setTransactions] = useState<any[]>([])
   const [showTransactions, setShowTransactions] = useState(false)
+  const [detailTrx, setDetailTrx] = useState<any>(null)
 
   const [pelangganList, setPelangganList] = useState<any[]>([])
   const [selectedPelanggan, setSelectedPelanggan] = useState('')
@@ -144,21 +145,15 @@ const PosPage: React.FC = () => {
   }
 
   const loadTransactions = useCallback(async () => {
-  try {
-    const res = await posApi.getTransaksiList(100)
-    console.log('Riwayat transaksi:', res.data)  // debugging
-    setTransactions(res.data)
-  } catch (err) {
-    console.error('Gagal ambil riwayat:', err)
-    setTransactions([])  // pastikan state tetap array kosong jika gagal
-  }
-}, [])
+    try {
+      const res = await posApi.getTransaksiList(100)
+      setTransactions(res.data)
+    } catch {}
+  }, [])
 
-useEffect(() => {
-  if (showTransactions) {
-    loadTransactions()
-  }
-}, [showTransactions, loadTransactions])
+  useEffect(() => {
+    if (showTransactions) loadTransactions()
+  }, [showTransactions, loadTransactions])
 
   const calculateVariance = () => {
     if (!store.shift) return
@@ -220,7 +215,7 @@ useEffect(() => {
               )}
             </Card>
 
-            <Card title={`KERANJANG (${store.cart.length} ITEM)`} glow="cyan" className="flex-1 overflow-auto max-h-[50vh]">
+            <Card title={`KERANJANG (${store.cart.length} ITEM)`} glow="cyan" className="flex-1 overflow-auto" style={{ minHeight: 200, maxHeight: '50vh' }}>
               {store.cart.length === 0 && <p className="text-center text-text-dim py-8 font-orbitron">KERANJANG KOSONG</p>}
               {store.cart.map(item => (
                 <div key={item.produk_id} className="flex items-center justify-between py-2 border-b border-[rgba(0,245,255,0.08)]">
@@ -240,7 +235,7 @@ useEffect(() => {
             </Card>
           </div>
 
-          <div className="w-80 flex flex-col gap-4">
+          <div className="w-80 flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
             <Card title="RINGKASAN" glow="yellow">
               <div className="space-y-2 text-sm font-semibold">
                 <div className="flex justify-between"><span className="text-text-dim">Subtotal</span><span>Rp {cartTotal.toLocaleString()}</span></div>
@@ -340,6 +335,7 @@ useEffect(() => {
                 </p>
               </div>
               <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setDetailTrx(trx)}><Eye className="w-3 h-3" /></Button>
                 {trx.status !== 'void' && trx.status !== 'retur' && (
                   <>
                     {user?.role === 'super_admin' && (
@@ -362,6 +358,38 @@ useEffect(() => {
           </div>
         )}
       </Modal>
+
+      {detailTrx && (
+        <Modal open={true} onClose={() => setDetailTrx(null)} title={`DETAIL ${detailTrx.no_transaksi}`}>
+          <div className="text-sm space-y-2 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="text-text-dim">Tanggal</div><div>{new Date(detailTrx.created_at).toLocaleString('id-ID')}</div>
+              <div className="text-text-dim">Pembayaran</div><div className="font-bold">{detailTrx.jenis_pembayaran}</div>
+              <div className="text-text-dim">Status</div><div className={`tag ${detailTrx.status === 'selesai' ? 'tag-green' : 'tag-orange'}`}>{detailTrx.status}</div>
+            </div>
+            <hr className="border-[rgba(0,245,255,0.15)]" />
+            <p className="font-bold text-xs uppercase">Item</p>
+            <table className="table-neon w-full text-xs">
+              <thead><tr><th>Item</th><th>Qty</th><th>Harga</th><th>Subtotal</th></tr></thead>
+              <tbody>
+                {detailTrx.items?.map((item: any, idx: number) => (
+                  <tr key={idx}>
+                    <td>{item.produk_id?.substring(0,8) || 'Produk'}</td>
+                    <td>{item.qty}</td>
+                    <td>Rp {Number(item.harga_satuan).toLocaleString()}</td>
+                    <td>Rp {Number(item.subtotal).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="grid grid-cols-2 gap-1 text-xs">
+              <div className="text-text-dim">Diskon</div><div>Rp {Number(detailTrx.diskon_total).toLocaleString()}</div>
+              <div className="text-text-dim">Bayar</div><div>Rp {Number(detailTrx.bayar || detailTrx.total_setelah_diskon).toLocaleString()}</div>
+              <div className="text-text-dim">Kembalian</div><div>Rp {Number(detailTrx.kembalian || 0).toLocaleString()}</div>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       <Modal open={showShiftModal !== null} onClose={() => setShowShiftModal(null)} title={showShiftModal === 'buka' ? 'BUKA SHIFT' : 'TUTUP SHIFT'} onConfirm={showShiftModal === 'buka' ? handleOpenShiftSubmit : handleCloseShiftSubmit} confirmText="SIMPAN">
         <Input

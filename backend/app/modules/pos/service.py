@@ -75,19 +75,26 @@ class ShiftService:
 
 class TransaksiService:
     @staticmethod
-    async def generate_no_transaksi(db: AsyncSession) -> str:
-        today = date.today().strftime("%Y%m%d")
-        result = await db.execute(
-            select(Transaksi.no_transaksi).where(
-                Transaksi.no_transaksi.like(f"TRX-{today}-%")
-            ).order_by(Transaksi.no_transaksi.desc()).limit(1)
-        )
-        last = result.scalar_one_or_none()
-        if last:
+async def generate_no_transaksi(db: AsyncSession) -> str:
+    from datetime import datetime
+    import uuid as uuid_lib
+    today = date.today().strftime("%Y%m%d")
+    now = datetime.utcnow().strftime("%H%M%S")
+    result = await db.execute(
+        select(Transaksi.no_transaksi).where(
+            Transaksi.no_transaksi.like(f"TRXSS-%-{today}-%")
+        ).order_by(Transaksi.no_transaksi.desc()).limit(1)
+    )
+    last = result.scalar_one_or_none()
+    if last:
+        try:
             num = int(last.split("-")[-1]) + 1
-        else:
+        except (IndexError, ValueError):
             num = 1
-        return f"TRX-{today}-{num:04d}"
+    else:
+        num = 1
+    short_uuid = uuid_lib.uuid4().hex[:6].upper()
+    return f"TRXSS-{short_uuid}-{today}-{now}-{num:04d}"
 
     @staticmethod
     async def create_transaksi(

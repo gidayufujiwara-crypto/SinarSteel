@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-
+from typing import Optional
 from sqlalchemy import String, Integer, Numeric, ForeignKey, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
@@ -14,7 +14,7 @@ class DeliveryOrder(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     no_order: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
     transaksi_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("transaksi.id"))
-    pelanggan_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("pelanggan.id"), nullable=False)
+    pelanggan_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("pelanggan.id"), nullable=True)
     nama_penerima: Mapped[str] = mapped_column(String(150), nullable=False)
     alamat_pengiriman: Mapped[str] = mapped_column(Text, nullable=False)
     kota: Mapped[str] = mapped_column(String(100), nullable=False)

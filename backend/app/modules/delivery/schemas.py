@@ -22,7 +22,7 @@ class DeliveryOrderResponse(BaseModel):
     id: UUID
     no_order: str
     transaksi_id: Optional[UUID] = None
-    pelanggan_id: UUID
+    pelanggan_id: Optional[UUID] = None
     nama_penerima: str
     alamat_pengiriman: str
     kota: str

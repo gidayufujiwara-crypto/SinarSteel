@@ -137,7 +137,6 @@ export const usePosStore = create<PosState>((set, get) => ({
     const total = state.cart.reduce((sum, item) => sum + ((item.harga_jual - item.diskon_per_item) * item.qty), 0)
     const diskon = state.diskon_total
     const total_after = total - diskon
-
     const payload: any = {
       pelanggan_id: state.pelanggan_id || null,
       jenis_pembayaran: state.jenis_pembayaran,

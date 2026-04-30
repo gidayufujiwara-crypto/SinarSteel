@@ -1,9 +1,10 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from decimal import Decimal
 from uuid import UUID
 from datetime import datetime
 
+# ---------- Shift ----------
 class OpenShiftRequest(BaseModel):
     saldo_awal: Decimal = Field(0, ge=0)
 
@@ -26,6 +27,7 @@ class ShiftResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# ---------- Item Transaksi ----------
 class TransaksiItemCreate(BaseModel):
     produk_id: UUID
     qty: int = Field(..., gt=0)
@@ -42,14 +44,18 @@ class TransaksiItemResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# ---------- Transaksi ----------
 class TransaksiCreate(BaseModel):
     pelanggan_id: Optional[UUID] = None
-    jenis_pembayaran: str = Field(..., pattern="^(tunai|transfer|qris|kredit)$")
+    jenis_pembayaran: str = Field(..., pattern="^(tunai|transfer|qris|kredit|cod)$")
     items: List[TransaksiItemCreate]
     diskon_total: Decimal = Field(0, ge=0)
     bayar: Optional[Decimal] = None
     catatan: Optional[str] = None
     delivery: Optional[dict] = None
+
+    class Config:
+        extra = "ignore"
 
 class TransaksiResponse(BaseModel):
     id: UUID
@@ -71,6 +77,7 @@ class TransaksiResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# ---------- Void ----------
 class VoidRequest(BaseModel):
     password: str
 
@@ -81,7 +88,11 @@ class RequestVoidResponse(BaseModel):
 class VerifyVoidRequest(BaseModel):
     pin: str
 
+# ---------- Retur ----------
 class ReturRequest(BaseModel):
     transaksi_id: UUID
     items: List[TransaksiItemCreate]
     diskon_total: Decimal = Field(0, ge=0)
+
+    class Config:
+        extra = "ignore"

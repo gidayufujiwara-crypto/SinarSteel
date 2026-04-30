@@ -157,6 +157,10 @@ class TransaksiService:
             if bayar is None or bayar < total_setelah:
                 raise ValueError("Jumlah bayar kurang")
             kembalian = bayar - total_setelah
+        elif jenis == "cod":
+            # COD tidak ada pembayaran di awal, bayar = None
+             bayar = None
+             kembalian = None
         else:
             bayar = total_setelah
             kembalian = Decimal(0)

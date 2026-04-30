@@ -144,15 +144,21 @@ const PosPage: React.FC = () => {
   }
 
   const loadTransactions = useCallback(async () => {
-    try {
-      const res = await posApi.getTransaksiList(100)
-      setTransactions(res.data)
-    } catch {}
-  }, [])
+  try {
+    const res = await posApi.getTransaksiList(100)
+    console.log('Riwayat transaksi:', res.data)  // debugging
+    setTransactions(res.data)
+  } catch (err) {
+    console.error('Gagal ambil riwayat:', err)
+    setTransactions([])  // pastikan state tetap array kosong jika gagal
+  }
+}, [])
 
-  useEffect(() => {
-    if (showTransactions) loadTransactions()
-  }, [showTransactions, loadTransactions])
+useEffect(() => {
+  if (showTransactions) {
+    loadTransactions()
+  }
+}, [showTransactions, loadTransactions])
 
   const calculateVariance = () => {
     if (!store.shift) return

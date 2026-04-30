@@ -42,8 +42,7 @@ class Transaksi(Base):
     kembalian: Mapped[Optional[Decimal]] = mapped_column(Numeric(15,2))
     catatan: Mapped[Optional[str]] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    items: Mapped[List["TransaksiItem"]] = relationship(back_populates="transaksi")
+    items: Mapped[List["TransaksiItem"]] = relationship(back_populates="transaksi", lazy="selectin")
     shift: Mapped[Optional[Shift]] = relationship(back_populates="transaksi")
 
 class TransaksiItem(Base):

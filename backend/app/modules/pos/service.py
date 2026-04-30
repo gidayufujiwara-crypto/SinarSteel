@@ -1,5 +1,8 @@
 import uuid
-from datetime import datetime, date
+import random
+import string
+from app.modules.pos.models import VoidPin
+from datetime import datetime, date, timedelta
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -221,3 +224,98 @@ class TransaksiService:
     async def get_transaksi_by_id(db: AsyncSession, id: uuid.UUID) -> Optional[Transaksi]:
         result = await db.execute(select(Transaksi).where(Transaksi.id == id))
         return result.scalar_one_or_none()
+    
+class VoidService:
+    @staticmethod
+    async def request_void(db: AsyncSession, transaksi_id: uuid.UUID, current_user: User) -> str:
+        if current_user.role != "super_admin":
+            raise ValueError("Hanya super admin yang dapat meminta void")
+        transaksi = await TransaksiService.get_transaksi_by_id(db, transaksi_id)
+        if not transaksi:
+            raise ValueError("Transaksi tidak ditemukan")
+        if transaksi.status == "void":
+            raise ValueError("Transaksi sudah di-void")
+
+        pin = ''.join(random.choices(string.digits, k=6))
+        void_pin = VoidPin(
+            transaksi_id=transaksi_id,
+            pin=pin,
+            expires_at=datetime.utcnow() + timedelta(seconds=60)
+        )
+        db.add(void_pin)
+        await db.commit()
+        return pin
+
+    @staticmethod
+    async def verify_void(db: AsyncSession, transaksi_id: uuid.UUID, pin: str, current_user: User) -> Transaksi:
+        if current_user.role != "super_admin":
+            raise ValueError("Hanya super admin yang dapat melakukan void")
+        result = await db.execute(
+            select(VoidPin).where(
+                VoidPin.transaksi_id == transaksi_id,
+                VoidPin.pin == pin,
+                VoidPin.used == False,
+                VoidPin.expires_at > datetime.utcnow()
+            )
+        )
+        void_pin = result.scalar_one_or_none()
+        if not void_pin:
+            raise ValueError("PIN tidak valid atau sudah kadaluarsa")
+
+        void_pin.used = True
+        transaksi = await TransaksiService.void_transaksi(db, transaksi_id, "", current_user)
+        return transaksi
+
+    @staticmethod
+    async def get_pending_voids(db: AsyncSession) -> List[dict]:
+        result = await db.execute(
+            select(VoidPin).where(
+                VoidPin.used == False,
+                VoidPin.expires_at > datetime.utcnow()
+            )
+        )
+        pins = result.scalars().all()
+        return [{"transaksi_id": str(p.transaksi_id), "pin": p.pin} for p in pins]
+    
+class ReturService:
+    @staticmethod
+    async def retur_transaksi(db: AsyncSession, data: dict, kasir: User) -> Transaksi:
+        # Cek role (manager ke atas)
+        if kasir.role not in ("super_admin", "manager"):
+            raise ValueError("Hanya manager atau super admin yang dapat melakukan retur")
+
+        transaksi_lama = await TransaksiService.get_transaksi_by_id(db, data["transaksi_id"])
+        if not transaksi_lama:
+            raise ValueError("Transaksi tidak ditemukan")
+        if transaksi_lama.status == "retur":
+            raise ValueError("Transaksi sudah diretur")
+        # Hanya transaksi hari ini
+        today = date.today()
+        if transaksi_lama.created_at.date() != today:
+            raise ValueError("Retur hanya bisa dilakukan pada transaksi hari ini")
+
+        # Kembalikan stok
+        for item in transaksi_lama.items:
+            produk = await db.get(Produk, item.produk_id)
+            if produk:
+                produk.stok += item.qty
+
+        # Tandai transaksi lama sebagai retur
+        transaksi_lama.status = "retur"
+        await db.flush()
+
+        # Buat transaksi baru (pengganti)
+        new_data = {
+            "pelanggan_id": transaksi_lama.pelanggan_id,
+            "jenis_pembayaran": transaksi_lama.jenis_pembayaran,
+            "items": data["items"],
+            "diskon_total": data.get("diskon_total", 0),
+            "bayar": None,  # akan dihitung ulang
+            "catatan": f"Retur dari transaksi {transaksi_lama.no_transaksi}",
+        }
+        new_transaksi = await TransaksiService.create_transaksi(db, kasir, new_data)
+        # Set parent_id (pastikan field parent_id ada di model Transaksi)
+        new_transaksi.parent_id = transaksi_lama.id
+        await db.commit()
+        await db.refresh(new_transaksi)
+        return new_transaksi

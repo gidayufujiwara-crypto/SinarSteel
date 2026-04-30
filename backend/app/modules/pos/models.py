@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import String, Integer, Numeric, ForeignKey, DateTime, Text
+from sqlalchemy import String, Integer, Numeric, ForeignKey, DateTime, Text, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -58,3 +58,13 @@ class TransaksiItem(Base):
     subtotal: Mapped[Decimal] = mapped_column(Numeric(15,2), nullable=False)
 
     transaksi: Mapped[Transaksi] = relationship(back_populates="items")
+
+class VoidPin(Base):
+    __tablename__ = "void_pins"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    transaksi_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("transaksi.id"), nullable=False)
+    pin: Mapped[str] = mapped_column(String(6), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)

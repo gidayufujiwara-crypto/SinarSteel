@@ -6,6 +6,7 @@ import Input from '../../components/ui/Input'
 import Modal from '../../components/ui/Modal'
 import { Plus, Trash2 } from 'lucide-react'
 import apiClient from '../../api/client'
+import { settingsApi } from '../../api/pos'
 
 const SettingsPage: React.FC = () => {
   const user = useAuthStore((state) => state.user)
@@ -15,13 +16,38 @@ const SettingsPage: React.FC = () => {
   const [newUser, setNewUser] = useState({ username: '', password: '', full_name: '', role: 'karyawan' })
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  // State untuk pengaturan lokal
   const [printerName, setPrinterName] = useState(localStorage.getItem('printerName') || '')
   const [storeName, setStoreName] = useState(localStorage.getItem('storeName') || '')
   const [storeAddress, setStoreAddress] = useState(localStorage.getItem('storeAddress') || '')
   const [storePhone, setStorePhone] = useState(localStorage.getItem('storePhone') || '')
 
-  const saveSetting = (key: string, value: string) => {
+  // Settings from backend
+  const [bank, setBank] = useState('')
+  const [rekening, setRekening] = useState('')
+  const [atasNama, setAtasNama] = useState('')
+  const [qrisUrl, setQrisUrl] = useState('')
+
+  const fetchSettings = async () => {
+    try {
+      const res = await settingsApi.getAll()
+      const map: any = {}
+      res.data.forEach((s: any) => { map[s.key] = s.value })
+      setBank(map.bank_name || '')
+      setRekening(map.account_number || '')
+      setAtasNama(map.account_holder || '')
+      setQrisUrl(map.qris_image_url || '')
+    } catch {}
+  }
+
+  const saveSetting = async (key: string, value: string) => {
+    try {
+      await settingsApi.update(key, value)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const saveLocal = (key: string, value: string) => {
     localStorage.setItem(key, value)
     switch (key) {
       case 'printerName': setPrinterName(value); break
@@ -36,7 +62,7 @@ const SettingsPage: React.FC = () => {
     try { const res = await apiClient.get('/auth/users'); setUsers(res.data) } catch (err) { console.error(err) } finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchUsers() }, [])
+  useEffect(() => { fetchUsers(); fetchSettings() }, [])
 
   const handleCreate = async () => {
     try {
@@ -58,9 +84,7 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-text-primary font-orbitron tracking-[2px] uppercase mb-6">
-        PENGATURAN SISTEM
-      </h1>
+      <h1 className="text-2xl font-bold text-text-primary font-orbitron tracking-[2px] uppercase mb-6">PENGATURAN SISTEM</h1>
 
       {user?.role === 'super_admin' && (
         <>
@@ -69,9 +93,7 @@ const SettingsPage: React.FC = () => {
               <Button onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" /> TAMBAH USER</Button>
             </div>
             <table className="table-neon w-full">
-              <thead>
-                <tr><th>Username</th><th>Nama Lengkap</th><th>Role</th><th>Aktif</th><th>Aksi</th></tr>
-              </thead>
+              <thead><tr><th>Username</th><th>Nama Lengkap</th><th>Role</th><th>Aktif</th><th>Aksi</th></tr></thead>
               <tbody>
                 {loading && <tr><td colSpan={5} className="text-center py-4 text-text-dim">MEMUAT...</td></tr>}
                 {!loading && users.length === 0 && <tr><td colSpan={5} className="text-center py-4 text-text-dim">TIDAK ADA USER</td></tr>}
@@ -90,27 +112,31 @@ const SettingsPage: React.FC = () => {
 
           <Card title="PENGATURAN PRINTER" glow="cyan" className="mt-6">
             <div className="space-y-4 max-w-md">
-              <Input
-                label="Nama Printer Thermal"
-                placeholder="EPSON TM-U220"
-                value={printerName}
-                onChange={e => saveSetting('printerName', e.target.value)}
-              />
-              <p className="text-text-dim text-xs">Nama printer digunakan saat mencetak struk. Pastikan driver sudah terpasang.</p>
+              <Input label="Nama Printer Thermal" placeholder="EPSON TM-U220" value={printerName} onChange={e => saveLocal('printerName', e.target.value)} />
+              <p className="text-text-dim text-xs">Nama printer digunakan saat mencetak struk.</p>
             </div>
           </Card>
 
           <Card title="INFORMASI TOKO" glow="cyan" className="mt-6">
             <div className="space-y-4 max-w-md">
-              <Input label="Nama Toko" placeholder="SinarSteel" value={storeName} onChange={e => saveSetting('storeName', e.target.value)} />
-              <Input label="Alamat" placeholder="Jl. Besi No. 123" value={storeAddress} onChange={e => saveSetting('storeAddress', e.target.value)} />
-              <Input label="Telepon / WA" placeholder="021-12345678" value={storePhone} onChange={e => saveSetting('storePhone', e.target.value)} />
+              <Input label="Nama Toko" placeholder="SinarSteel" value={storeName} onChange={e => saveLocal('storeName', e.target.value)} />
+              <Input label="Alamat" placeholder="Jl. Besi No. 123" value={storeAddress} onChange={e => saveLocal('storeAddress', e.target.value)} />
+              <Input label="Telepon / WA" placeholder="021-12345678" value={storePhone} onChange={e => saveLocal('storePhone', e.target.value)} />
+            </div>
+          </Card>
+
+          <Card title="PENGATURAN PEMBAYARAN" glow="cyan" className="mt-6">
+            <div className="space-y-4 max-w-md">
+              <Input label="Nama Bank" placeholder="BCA" value={bank} onChange={e => { setBank(e.target.value); saveSetting('bank_name', e.target.value) }} />
+              <Input label="Nomor Rekening" placeholder="1234567890" value={rekening} onChange={e => { setRekening(e.target.value); saveSetting('account_number', e.target.value) }} />
+              <Input label="Atas Nama Rekening" placeholder="SinarSteel" value={atasNama} onChange={e => { setAtasNama(e.target.value); saveSetting('account_holder', e.target.value) }} />
+              <Input label="URL Gambar QRIS" placeholder="/qris-placeholder.png" value={qrisUrl} onChange={e => { setQrisUrl(e.target.value); saveSetting('qris_image_url', e.target.value) }} />
+              {qrisUrl && <img src={qrisUrl} alt="QRIS" className="w-24 h-24 object-contain border border-[rgba(0,245,255,0.2)] rounded-lg" />}
             </div>
           </Card>
         </>
       )}
 
-      {/* Modals Create & Delete User */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="TAMBAH USER" onConfirm={handleCreate} confirmText="SIMPAN">
         <div className="space-y-3">
           <Input label="Username" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />

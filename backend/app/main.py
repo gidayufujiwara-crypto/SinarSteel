@@ -11,6 +11,7 @@ from app.modules.pos import router as pos_router
 from app.modules.wms import router as wms_router
 from app.modules.hr import router as hr_router
 from app.modules.delivery import router as delivery_router
+from app.modules.settings.router import router as settings_router
 from app.modules.report import router as report_router
 
 app = FastAPI(
@@ -34,6 +35,7 @@ app.include_router(pos_router, prefix="/pos", tags=["Point of Sale"])
 app.include_router(wms_router, prefix="/wms", tags=["Warehouse Management"])
 app.include_router(hr_router, prefix="/hr", tags=["Human Resources"])
 app.include_router(delivery_router, prefix="/delivery", tags=["Delivery"])
+app.include_router(settings_router, prefix="/settings", tags=["Settings"])
 app.include_router(report_router, prefix="/report", tags=["Reports"])
 
 @app.get("/")

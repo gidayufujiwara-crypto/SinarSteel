@@ -8,7 +8,7 @@ export interface CartItem {
   harga_jual: number
   qty: number
   diskon_per_item: number
-  hpp_rata_rata: number   // ← BARU
+  hpp_rata_rata: number
 }
 
 interface PosState {
@@ -16,7 +16,7 @@ interface PosState {
   shift: any | null
   pelanggan_id: string | null
   pelanggan_nama: string
-  jenis_pembayaran: 'tunai' | 'transfer' | 'qris' | 'kredit'
+  jenis_pembayaran: 'tunai' | 'transfer' | 'qris' | 'kredit' | 'cod'
   diskon_total: number
   bayar: number
   error: string | null
@@ -27,14 +27,14 @@ interface PosState {
   updateQty: (produk_id: string, qty: number) => void
   updateDiskonItem: (produk_id: string, diskon: number) => void
   clearCart: () => void
-  setPembayaran: (jenis: 'tunai' | 'transfer' | 'qris' | 'kredit') => void
+  setPembayaran: (jenis: 'tunai' | 'transfer' | 'qris' | 'kredit' | 'cod') => void
   setDiskonTotal: (diskon: number) => void
   setBayar: (bayar: number) => void
   setPelanggan: (id: string | null, nama: string) => void
   fetchShift: () => Promise<void>
   openShift: (saldoAwal: number) => Promise<void>
   closeShift: (totalSetoran: number) => Promise<void>
-  submitTransaction: () => Promise<any>
+  submitTransaction: (deliveryData?: any) => Promise<any>
   reset: () => void
 }
 
@@ -67,7 +67,7 @@ export const usePosStore = create<PosState>((set, get) => ({
           harga_jual: Number(product.harga_jual),
           qty: 1,
           diskon_per_item: 0,
-          hpp_rata_rata: Number(product.hpp_rata_rata || 0),  // ← BARU
+          hpp_rata_rata: Number(product.hpp_rata_rata || 0),
         }],
       })
     }
@@ -128,14 +128,14 @@ export const usePosStore = create<PosState>((set, get) => ({
     }
   },
 
-  submitTransaction: async () => {
+  submitTransaction: async (deliveryData) => {
     set({ loading: true, error: null })
     const state = get()
     const total = state.cart.reduce((sum, item) => sum + ((item.harga_jual - item.diskon_per_item) * item.qty), 0)
     const diskon = state.diskon_total
     const total_after = total - diskon
 
-    const payload = {
+    const payload: any = {
       pelanggan_id: state.pelanggan_id || null,
       jenis_pembayaran: state.jenis_pembayaran,
       items: state.cart.map(item => ({
@@ -146,20 +146,17 @@ export const usePosStore = create<PosState>((set, get) => ({
       diskon_total: diskon,
       bayar: state.jenis_pembayaran === 'tunai' ? state.bayar : null,
       catatan: '',
+      delivery: deliveryData || undefined,
     }
 
     try {
       const res = await posApi.createTransaksi(payload)
-      if (window.electronAPI?.printReceipt) {
-        const struk = generateStruk(res.data, state.cart, total, diskon, total_after)
-        window.electronAPI.printReceipt(struk)
-      }
       set({ loading: false })
       get().clearCart()
       get().fetchShift()
       return res.data
     } catch (err: any) {
-      const msg = err.response?.data?.detail || 'Gagal menyimpan transaksi'
+      const msg = err.response?.data?.detail || err.message || 'Gagal menyimpan transaksi'
       set({ loading: false, error: msg })
       throw err
     }
@@ -175,40 +172,3 @@ export const usePosStore = create<PosState>((set, get) => ({
     error: null,
   }),
 }))
-
-function generateStruk(trx: any, cart: CartItem[], total: number, diskon: number, total_after: number): string {
-  const storeName = localStorage.getItem('storeName') || 'SinarSteel'
-  const storeAddress = localStorage.getItem('storeAddress') || ''
-  const storePhone = localStorage.getItem('storePhone') || ''
-
-  const lines = [
-    `   ${storeName}`,
-    storeAddress ? `   ${storeAddress}` : '',
-    storePhone ? `   Telp: ${storePhone}` : '',
-    '=============================',
-    `No Transaksi: ${trx.no_transaksi}`,
-    `Tanggal: ${new Date(trx.created_at).toLocaleString('id-ID')}`,
-    '=============================',
-  ]
-
-  cart.forEach(item => {
-    lines.push(`${item.nama} (${item.sku})`)
-    lines.push(`   ${item.qty} x ${item.harga_jual.toLocaleString()} = ${((item.harga_jual - item.diskon_per_item) * item.qty).toLocaleString()}`)
-    if (item.diskon_per_item > 0) {
-      lines.push(`   (Diskon @${item.diskon_per_item.toLocaleString()})`)
-    }
-  })
-
-  lines.push('-----------------------------')
-  lines.push(`Total: ${total.toLocaleString()}`)
-  if (diskon > 0) lines.push(`Diskon: ${diskon.toLocaleString()}`)
-  lines.push(`Grand Total: ${total_after.toLocaleString()}`)
-  lines.push(`Pembayaran: ${trx.jenis_pembayaran.toUpperCase()}`)
-  if (trx.bayar) lines.push(`Bayar: ${Number(trx.bayar).toLocaleString()}`)
-  if (trx.kembalian !== null) lines.push(`Kembalian: ${Number(trx.kembalian).toLocaleString()}`)
-  lines.push('=============================')
-  lines.push('   Terima Kasih')
-  lines.push(' ')
-
-  return lines.join('\n')
-}

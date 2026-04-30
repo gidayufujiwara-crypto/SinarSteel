@@ -87,6 +87,33 @@ class DeliveryService:
         await db.refresh(order)
         return order
 
+@staticmethod
+async def create_order_from_pos(
+    db: AsyncSession,
+    transaksi_id: uuid.UUID,
+    pelanggan_id: Optional[uuid.UUID],
+    nama_penerima: str,
+    alamat_pengiriman: str,
+    kota: str,
+    telepon: Optional[str] = None,
+    nominal_cod: Optional[Decimal] = None,
+):
+    no_order = generate_no_order()
+    order = DeliveryOrder(
+        no_order=no_order,
+        transaksi_id=transaksi_id,
+        pelanggan_id=pelanggan_id,
+        nama_penerima=nama_penerima,
+        alamat_pengiriman=alamat_pengiriman,
+        kota=kota,
+        telepon=telepon,
+        nominal_cod=nominal_cod,
+        status="disiapkan",
+    )
+    db.add(order)
+    await db.commit()
+    await db.refresh(order)
+    return order
     @staticmethod
     async def get_driver_orders_today(db: AsyncSession, driver_id: uuid.UUID) -> List[DeliveryOrder]:
         today = date.today()

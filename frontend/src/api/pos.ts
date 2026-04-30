@@ -9,3 +9,8 @@ export const posApi = {
   getTransaksiById: (id: string) => apiClient.get(`/pos/transaksi/${id}`),
   voidTransaksi: (id: string, password: string) => apiClient.post(`/pos/transaksi/${id}/void`, { password }),
 }
+
+export const settingsApi = {
+  getAll: () => apiClient.get('/settings'),
+  update: (key: string, value: string) => apiClient.put(`/settings/${key}`, { value }),
+}

@@ -7,6 +7,8 @@ from sqlalchemy import select, func
 from app.modules.pos.models import Shift, Transaksi, TransaksiItem
 from app.modules.master.models import Produk, Pelanggan
 from app.modules.auth.models import User
+from app.modules.delivery.models import DeliveryOrder
+from app.modules.delivery.service import DeliveryService
 from app.core.security import verify_password
 
 class ShiftService:
@@ -187,6 +189,24 @@ class TransaksiService:
         await db.commit()
         await db.refresh(transaksi)
         await db.refresh(transaksi, attribute_names=['items'])
+        delivery_data = data.get("delivery")
+        if delivery_data:
+            nominal_cod = total_setelah if jenis == "cod" else None
+            if jenis == "cod":
+                 bayar = Decimal(0)
+                 kembalian = Decimal(0)
+            if not delivery_data:
+              raise ValueError("Data pengiriman harus diisi untuk COD")
+            await DeliveryService.create_order_from_pos(
+                db,
+                transaksi_id=transaksi.id,
+                pelanggan_id=data.get("pelanggan_id"),
+                nama_penerima=delivery_data["nama_penerima"],
+                alamat_pengiriman=delivery_data["alamat"],
+                kota=delivery_data["kota"],
+                telepon=delivery_data.get("telepon"),
+                nominal_cod=nominal_cod,
+            )
         return transaksi
 
     @staticmethod

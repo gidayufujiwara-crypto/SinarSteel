@@ -1,18 +1,15 @@
 import uuid
-import random
-import string
-from app.modules.pos.models import VoidPin
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from app.modules.pos.models import Shift, Transaksi, TransaksiItem
+from app.modules.pos.models import Shift, Transaksi, TransaksiItem, VoidPin
 from app.modules.master.models import Produk, Pelanggan
 from app.modules.auth.models import User
-from app.modules.delivery.models import DeliveryOrder
-from app.modules.delivery.service import DeliveryService
 from app.core.security import verify_password
+import random
+import string
 
 class ShiftService:
     @staticmethod
@@ -39,7 +36,6 @@ class ShiftService:
         if not shift:
             return None
 
-        # Hitung total transaksi
         rekap = await db.execute(
             select(
                 func.count(Transaksi.id).label("total_trx"),
@@ -50,21 +46,19 @@ class ShiftService:
         total_transaksi = data.total_trx or 0
         total_penjualan = data.total_penjualan or Decimal(0)
 
-        # Total tunai khusus
         result_tunai = await db.execute(
             select(func.coalesce(func.sum(Transaksi.total_setelah_diskon), 0))
             .where(Transaksi.shift_id == shift.id, Transaksi.status == "selesai", Transaksi.jenis_pembayaran == "tunai")
         )
         total_tunai = result_tunai.scalar() or Decimal(0)
 
-        # Kalkulasi
         seharusnya = shift.saldo_awal + total_penjualan
         selisih = total_setoran - seharusnya
 
         shift.waktu_tutup = datetime.utcnow()
         shift.total_transaksi = total_transaksi
         shift.total_tunai = total_tunai
-        shift.total_transfer = Decimal(0)  # bisa dihitung, tapi untuk sederhana 0
+        shift.total_transfer = Decimal(0)
         shift.total_qris = Decimal(0)
         shift.status = "tutup"
         shift.catatan = f"Setoran: {total_setoran}, Seharusnya: {seharusnya}, Selisih: {selisih}"
@@ -75,26 +69,24 @@ class ShiftService:
 
 class TransaksiService:
     @staticmethod
-async def generate_no_transaksi(db: AsyncSession) -> str:
-    from datetime import datetime
-    import uuid as uuid_lib
-    today = date.today().strftime("%Y%m%d")
-    now = datetime.utcnow().strftime("%H%M%S")
-    result = await db.execute(
-        select(Transaksi.no_transaksi).where(
-            Transaksi.no_transaksi.like(f"TRXSS-%-{today}-%")
-        ).order_by(Transaksi.no_transaksi.desc()).limit(1)
-    )
-    last = result.scalar_one_or_none()
-    if last:
-        try:
-            num = int(last.split("-")[-1]) + 1
-        except (IndexError, ValueError):
+    async def generate_no_transaksi(db: AsyncSession) -> str:
+        today = date.today().strftime("%Y%m%d")
+        now = datetime.utcnow().strftime("%H%M%S")
+        result = await db.execute(
+            select(Transaksi.no_transaksi).where(
+                Transaksi.no_transaksi.like(f"TRXSS-%-{today}-%")
+            ).order_by(Transaksi.no_transaksi.desc()).limit(1)
+        )
+        last = result.scalar_one_or_none()
+        if last:
+            try:
+                num = int(last.split("-")[-1]) + 1
+            except (IndexError, ValueError):
+                num = 1
+        else:
             num = 1
-    else:
-        num = 1
-    short_uuid = uuid_lib.uuid4().hex[:6].upper()
-    return f"TRXSS-{short_uuid}-{today}-{now}-{num:04d}"
+        short_uuid = uuid.uuid4().hex[:6].upper()
+        return f"TRXSS-{short_uuid}-{today}-{now}-{num:04d}"
 
     @staticmethod
     async def create_transaksi(
@@ -121,12 +113,10 @@ async def generate_no_transaksi(db: AsyncSession) -> str:
             diskon = item.get("diskon_per_item", 0)
             harga_setelah_diskon = harga - diskon
 
-            # ========== VALIDASI HPP ==========
             if harga_setelah_diskon < produk.hpp_rata_rata:
                 raise ValueError(
                     f"Harga bersih untuk produk {produk.nama} setelah diskon tidak boleh di bawah HPP rata‑rata (Rp {produk.hpp_rata_rata:,.2f})"
                 )
-            # ================================
 
             subtotal = harga_setelah_diskon * item["qty"]
             total_sebelum += subtotal
@@ -147,6 +137,7 @@ async def generate_no_transaksi(db: AsyncSession) -> str:
         jenis = data.get("jenis_pembayaran")
         bayar = data.get("bayar")
         kembalian = None
+        delivery_data = data.get("delivery")
 
         if jenis == "kredit":
             if not data.get("pelanggan_id"):
@@ -165,9 +156,8 @@ async def generate_no_transaksi(db: AsyncSession) -> str:
                 raise ValueError("Jumlah bayar kurang")
             kembalian = bayar - total_setelah
         elif jenis == "cod":
-            # COD tidak ada pembayaran di awal, bayar = None
-             bayar = None
-             kembalian = None
+            bayar = None
+            kembalian = None
         else:
             bayar = total_setelah
             kembalian = Decimal(0)
@@ -203,14 +193,10 @@ async def generate_no_transaksi(db: AsyncSession) -> str:
         await db.commit()
         await db.refresh(transaksi)
         await db.refresh(transaksi, attribute_names=['items'])
-        delivery_data = data.get("delivery")
+
         if delivery_data:
+            from app.modules.delivery.service import DeliveryService
             nominal_cod = total_setelah if jenis == "cod" else None
-            if jenis == "cod":
-                 bayar = Decimal(0)
-                 kembalian = Decimal(0)
-            if not delivery_data:
-              raise ValueError("Data pengiriman harus diisi untuk COD")
             await DeliveryService.create_order_from_pos(
                 db,
                 transaksi_id=transaksi.id,
@@ -221,6 +207,38 @@ async def generate_no_transaksi(db: AsyncSession) -> str:
                 telepon=delivery_data.get("telepon"),
                 nominal_cod=nominal_cod,
             )
+
+        return transaksi
+
+    @staticmethod
+    async def void_transaksi(db: AsyncSession, transaksi_id: uuid.UUID, password: str, current_user: User) -> Transaksi:
+        result = await db.execute(
+            select(Transaksi).where(Transaksi.id == transaksi_id)
+        )
+        transaksi = result.scalar_one_or_none()
+        if not transaksi:
+            raise ValueError("Transaksi tidak ditemukan")
+        if transaksi.status == "void":
+            raise ValueError("Transaksi sudah di-void")
+
+        if not verify_password(password, current_user.password_hash):
+            raise ValueError("Password otorisasi salah")
+        if current_user.role not in ("super_admin", "manager"):
+            raise ValueError("Anda tidak memiliki wewenang untuk void transaksi")
+
+        for item in transaksi.items:
+            produk = await db.get(Produk, item.produk_id)
+            if produk:
+                produk.stok += item.qty
+
+        if transaksi.jenis_pembayaran == "kredit" and transaksi.pelanggan_id:
+            pelanggan = await db.get(Pelanggan, transaksi.pelanggan_id)
+            if pelanggan:
+                pelanggan.saldo_kredit = (pelanggan.saldo_kredit or 0) - transaksi.total_setelah_diskon
+
+        transaksi.status = "void"
+        await db.commit()
+        await db.refresh(transaksi)
         return transaksi
 
     @staticmethod
@@ -235,7 +253,7 @@ async def generate_no_transaksi(db: AsyncSession) -> str:
     async def get_transaksi_by_id(db: AsyncSession, id: uuid.UUID) -> Optional[Transaksi]:
         result = await db.execute(select(Transaksi).where(Transaksi.id == id))
         return result.scalar_one_or_none()
-    
+
 class VoidService:
     @staticmethod
     async def request_void(db: AsyncSession, transaksi_id: uuid.UUID, current_user: User) -> str:
@@ -287,11 +305,10 @@ class VoidService:
         )
         pins = result.scalars().all()
         return [{"transaksi_id": str(p.transaksi_id), "pin": p.pin} for p in pins]
-    
+
 class ReturService:
     @staticmethod
     async def retur_transaksi(db: AsyncSession, data: dict, kasir: User) -> Transaksi:
-        # Cek role (manager ke atas)
         if kasir.role not in ("super_admin", "manager"):
             raise ValueError("Hanya manager atau super admin yang dapat melakukan retur")
 
@@ -300,32 +317,27 @@ class ReturService:
             raise ValueError("Transaksi tidak ditemukan")
         if transaksi_lama.status == "retur":
             raise ValueError("Transaksi sudah diretur")
-        # Hanya transaksi hari ini
         today = date.today()
         if transaksi_lama.created_at.date() != today:
             raise ValueError("Retur hanya bisa dilakukan pada transaksi hari ini")
 
-        # Kembalikan stok
         for item in transaksi_lama.items:
             produk = await db.get(Produk, item.produk_id)
             if produk:
                 produk.stok += item.qty
 
-        # Tandai transaksi lama sebagai retur
         transaksi_lama.status = "retur"
         await db.flush()
 
-        # Buat transaksi baru (pengganti)
         new_data = {
             "pelanggan_id": transaksi_lama.pelanggan_id,
             "jenis_pembayaran": transaksi_lama.jenis_pembayaran,
             "items": data["items"],
             "diskon_total": data.get("diskon_total", 0),
-            "bayar": None,  # akan dihitung ulang
+            "bayar": None,
             "catatan": f"Retur dari transaksi {transaksi_lama.no_transaksi}",
         }
         new_transaksi = await TransaksiService.create_transaksi(db, kasir, new_data)
-        # Set parent_id (pastikan field parent_id ada di model Transaksi)
         new_transaksi.parent_id = transaksi_lama.id
         await db.commit()
         await db.refresh(new_transaksi)

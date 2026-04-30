@@ -52,7 +52,6 @@ class DeliveryService:
         order = await DeliveryService.get_order_by_id(db, order_id)
         if not order:
             return None
-        # Verifikasi bahwa driver_id adalah karyawan yang ada (tidak wajib role driver)
         driver = await db.get(Karyawan, driver_id)
         if not driver:
             raise ValueError("Driver tidak ditemukan")
@@ -87,33 +86,6 @@ class DeliveryService:
         await db.refresh(order)
         return order
 
-@staticmethod
-async def create_order_from_pos(
-    db: AsyncSession,
-    transaksi_id: uuid.UUID,
-    pelanggan_id: Optional[uuid.UUID],
-    nama_penerima: str,
-    alamat_pengiriman: str,
-    kota: str,
-    telepon: Optional[str] = None,
-    nominal_cod: Optional[Decimal] = None,
-):
-    no_order = generate_no_order()
-    order = DeliveryOrder(
-        no_order=no_order,
-        transaksi_id=transaksi_id,
-        pelanggan_id=pelanggan_id,
-        nama_penerima=nama_penerima,
-        alamat_pengiriman=alamat_pengiriman,
-        kota=kota,
-        telepon=telepon,
-        nominal_cod=nominal_cod,
-        status="disiapkan",
-    )
-    db.add(order)
-    await db.commit()
-    await db.refresh(order)
-    return order
     @staticmethod
     async def get_driver_orders_today(db: AsyncSession, driver_id: uuid.UUID) -> List[DeliveryOrder]:
         today = date.today()
@@ -123,34 +95,61 @@ async def create_order_from_pos(
         ).order_by(DeliveryOrder.status != "selesai", DeliveryOrder.created_at)
         result = await db.execute(stmt)
         return result.scalars().all()
-    
-@staticmethod
-async def confirm_cod(db: AsyncSession, order_id: uuid.UUID, data: dict, user: User) -> Optional[DeliveryOrder]:
-    order = await DeliveryService.get_order_by_id(db, order_id)
-    if not order:
-        return None
-    if order.status != "sampai":
-        raise ValueError("COD hanya bisa dikonfirmasi saat status 'sampai'")
-    # Simpan nominal COD yang diterima (bisa ditambahkan field di model, untuk sementara kita catat di catatan)
-    order.catatan = f"COD diterima: {data['nominal_diterima']}"
-    order.status = "selesai"
-    # Tambah history
-    history = DeliveryStatusHistory(
-        delivery_id=order.id,
-        status="selesai",
-        catatan=order.catatan,
-        foto_url=data.get("foto_url"),
-    )
-    db.add(history)
-    await db.commit()
-    await db.refresh(order)
-    return order    
 
-@staticmethod
-async def get_driver_history(db: AsyncSession, driver_id: uuid.UUID) -> List[DeliveryOrder]:
-    stmt = select(DeliveryOrder).where(
-        DeliveryOrder.driver_id == driver_id,
-        DeliveryOrder.status == "selesai"
-    ).order_by(DeliveryOrder.updated_at.desc()).limit(50)
-    result = await db.execute(stmt)
-    return result.scalars().all()
+    @staticmethod
+    async def confirm_cod(db: AsyncSession, order_id: uuid.UUID, data: dict, user: User) -> Optional[DeliveryOrder]:
+        order = await DeliveryService.get_order_by_id(db, order_id)
+        if not order:
+            return None
+        if order.status != "sampai":
+            raise ValueError("COD hanya bisa dikonfirmasi saat status 'sampai'")
+        order.catatan = f"COD diterima: {data['nominal_diterima']}"
+        order.status = "selesai"
+        history = DeliveryStatusHistory(
+            delivery_id=order.id,
+            status="selesai",
+            catatan=order.catatan,
+            foto_url=data.get("foto_url"),
+        )
+        db.add(history)
+        await db.commit()
+        await db.refresh(order)
+        return order
+
+    @staticmethod
+    async def get_driver_history(db: AsyncSession, driver_id: uuid.UUID) -> List[DeliveryOrder]:
+        stmt = select(DeliveryOrder).where(
+            DeliveryOrder.driver_id == driver_id,
+            DeliveryOrder.status == "selesai"
+        ).order_by(DeliveryOrder.updated_at.desc()).limit(50)
+        result = await db.execute(stmt)
+        return result.scalars().all()
+
+    # ---------- METHOD BARU UNTUK POS ----------
+    @staticmethod
+    async def create_order_from_pos(
+        db: AsyncSession,
+        transaksi_id: uuid.UUID,
+        pelanggan_id: Optional[uuid.UUID],
+        nama_penerima: str,
+        alamat_pengiriman: str,
+        kota: str,
+        telepon: Optional[str] = None,
+        nominal_cod: Optional[Decimal] = None,
+    ):
+        no_order = generate_no_order()
+        order = DeliveryOrder(
+            no_order=no_order,
+            transaksi_id=transaksi_id,
+            pelanggan_id=pelanggan_id,
+            nama_penerima=nama_penerima,
+            alamat_pengiriman=alamat_pengiriman,
+            kota=kota,
+            telepon=telepon,
+            nominal_cod=nominal_cod,
+            status="disiapkan",
+        )
+        db.add(order)
+        await db.commit()
+        await db.refresh(order)
+        return order

@@ -11,6 +11,7 @@ const ReportPage: React.FC = () => {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [loading, setLoading] = useState(false)
+  const [selectedTrx, setSelectedTrx] = useState<any>(null)
 
   const fetchSales = async () => {
     setLoading(true)
@@ -75,7 +76,7 @@ const ReportPage: React.FC = () => {
               ) : (
                 sales.map((item, idx) => (
                   <tr key={idx}>
-                    <td className="font-mono">{item.no_transaksi}</td>
+                    <td className="font-mono cursor-pointer text-neon-cyan hover:text-neon-cyan/80" onClick={() => setSelectedTrx(item)}>{item.no_transaksi}</td>
                     <td>{new Date(item.tanggal).toLocaleDateString('id-ID')}</td>
                     <td className="text-text-dim">{item.kasir}</td>
                     <td>{item.pelanggan}</td>

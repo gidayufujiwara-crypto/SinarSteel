@@ -8,13 +8,12 @@ import {
 
 // Definisi menu lengkap dengan role yang diizinkan
 const allMenuItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin','manager','kasir','gudang','hr_admin'] },
-  { path: '/master/produk', label: 'Data Master', icon: Database, roles: ['super_admin','manager'] },
-  { path: '/pos', label: 'POS Kasir', icon: ShoppingCart, roles: ['super_admin','manager','kasir'] },
-  { path: '/wms', label: 'Gudang', icon: Warehouse, roles: ['super_admin','manager','gudang'] },
-  { path: '/hr', label: 'HR', icon: Users, roles: ['super_admin','manager','hr_admin'] },
-  { path: '/delivery', label: 'Pengiriman', icon: Truck, roles: ['super_admin','manager'] },
-  { path: '/report', label: 'Laporan', icon: BarChart3, roles: ['super_admin','manager'] },
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'kasir'] },
+  { path: '/master/produk', label: 'Data Master', icon: Database, roles: ['super_admin'] },
+  { path: '/pos', label: 'POS Kasir', icon: ShoppingCart, roles: ['super_admin', 'kasir'] },
+  { path: '/wms', label: 'Gudang', icon: Warehouse, roles: ['super_admin', 'checker', 'gudang'] },
+  { path: '/delivery/orders', label: 'Pengiriman', icon: Truck, roles: ['super_admin', 'kasir'] },
+  { path: '/report', label: 'Laporan', icon: BarChart3, roles: ['super_admin', 'kasir'] },
   { path: '/settings', label: 'Pengaturan', icon: Settings, roles: ['super_admin'] },
 ]
 

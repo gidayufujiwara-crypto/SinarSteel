@@ -78,7 +78,6 @@ const AppRouter = () => (
         <Route path="/delivery" element={<DeliveryPage />}>
           <Route index element={<DeliveryOrderList />} />
           <Route path="orders" element={<DeliveryOrderList />} />
-          <Route path="orders/tambah" element={<DeliveryOrderForm />} />
         </Route>
         <Route path="/pos" element={<PosPage />} />
         <Route path="/wms" element={<WmsPage />} />

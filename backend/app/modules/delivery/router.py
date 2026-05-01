@@ -14,7 +14,7 @@ router = APIRouter()
 async def list_orders(
     status: Optional[str] = Query(None),
     driver_id: Optional[UUID] = Query(None),
-    current_user: User = Depends(require_role("super_admin", "manager", "driver")),
+    current_user: User = Depends(require_role("super_admin", "kasir", "supir", "kernet")),
     db: AsyncSession = Depends(get_db)
 ):
     return await DeliveryService.get_orders(db, status, driver_id)
@@ -22,7 +22,7 @@ async def list_orders(
 @router.get("/orders/{id}", response_model=schemas.DeliveryOrderResponse)
 async def get_order(
     id: UUID,
-    current_user: User = Depends(require_role("super_admin", "manager", "driver")),
+    current_user: User = Depends(require_role("super_admin", "kasir", "supir", "kernet")),
     db: AsyncSession = Depends(get_db)
 ):
     order = await DeliveryService.get_order_by_id(db, id)
@@ -42,7 +42,7 @@ async def create_order(
 async def assign_driver(
     id: UUID,
     driver_id: UUID = Query(...),
-    current_user: User = Depends(require_role("super_admin", "manager")),
+    current_user: User = Depends(require_role("super_admin", "kasir")),
     db: AsyncSession = Depends(get_db)
 ):
     try:
@@ -53,11 +53,12 @@ async def assign_driver(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @router.put("/orders/{id}/status", response_model=schemas.DeliveryOrderResponse)
 async def update_status(
     id: UUID,
     data: schemas.StatusUpdateRequest,
-    current_user: User = Depends(require_role("super_admin", "manager", "driver")),
+    current_user: User = Depends(require_role("super_admin", "kasir", "supir", "kernet")),
     db: AsyncSession = Depends(get_db)
 ):
     try:

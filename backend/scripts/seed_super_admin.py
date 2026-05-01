@@ -1,8 +1,3 @@
-"""
-Script seeder untuk membuat user super_admin awal.
-Jalankan dari folder backend:
-  python scripts/seed_super_admin.py
-"""
 import asyncio
 import sys
 import os
@@ -13,64 +8,13 @@ from app.modules.auth.service import AuthService
 
 async def main():
     async with AsyncSessionLocal() as db:
-        # Buat super_admin
-        admin = await AuthService.create_user(
-            db,
-            username="admin",
-            password="admin123",
-            full_name="Super Admin",
-            role="super_admin",
-        )
-        print(f"✅ Super admin created: {admin.username} (ID: {admin.id})")
-
-        # Buat user sampel untuk testing
-        manager = await AuthService.create_user(
-            db,
-            username="manager",
-            password="manager123",
-            full_name="Manager Toko",
-            role="manager",
-        )
-        print(f"✅ Manager created: {manager.username}")
-
-        kasir = await AuthService.create_user(
-            db,
-            username="kasir",
-            password="kasir123",
-            full_name="Kasir 1",
-            role="kasir",
-        )
-        print(f"✅ Kasir created: {kasir.username}")
-
-        gudang = await AuthService.create_user(
-            db,
-            username="gudang",
-            password="gudang123",
-            full_name="Staff Gudang",
-            role="gudang",
-        )
-        print(f"✅ Gudang created: {gudang.username}")
-
-        # Di bagian bawah sebelum print selesai, tambahkan:
-        karyawan1 = await AuthService.create_user(
-        db,
-        username="karyawan1",
-        password="karyawan123",
-        full_name="Karyawan 1",
-        role="karyawan",
-        )
-        print(f"✅ Karyawan created: {karyawan1.username}")
-
-        driver1 = await AuthService.create_user(
-        db,
-        username="driver1",
-        password="driver123",
-        full_name="Driver 1",
-        role="driver",
-        )
-        print(f"✅ Driver created: {driver1.username}")
-
-        print("🎉 Seeding selesai!")
+        await AuthService.create_user(db, "admin", "admin123", "Super Admin", "super_admin")
+        await AuthService.create_user(db, "kasir1", "kasir123", "Kasir 1", "kasir")
+        await AuthService.create_user(db, "checker1", "checker123", "Checker 1", "checker")
+        await AuthService.create_user(db, "supir1", "supir123", "Supir 1", "supir")
+        await AuthService.create_user(db, "kernet1", "kernet123", "Kernet 1", "kernet")
+        await AuthService.create_user(db, "gudang1", "gudang123", "Gudang 1", "gudang")
+        print("✅ Semua user baru berhasil dibuat")
 
 if __name__ == "__main__":
     asyncio.run(main())

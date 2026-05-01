@@ -63,6 +63,21 @@ class ShiftService:
         shift.status = "tutup"
         shift.catatan = f"Setoran: {total_setoran}, Seharusnya: {seharusnya}, Selisih: {selisih}"
 
+        settlement_lines = [
+            '   SINARSTEEL',
+            '   LAPORAN SETTLEMENT',
+            f'   Tanggal: {date.today().strftime("%d/%m/%Y")}',
+            '=============================',
+            f'Total Transaksi: {total_transaksi}',
+            f'Total Penjualan: Rp {total_penjualan:,.2f}',
+            f'Total Tunai    : Rp {total_tunai:,.2f}',
+            f'Saldo Awal     : Rp {shift.saldo_awal:,.2f}',
+            f'Setoran        : Rp {total_setoran:,.2f}',
+            f'Selisih        : Rp {selisih:,.2f}',
+            '=============================',
+        ]
+        shift.catatan += '\n' + '\n'.join(settlement_lines)
+
         await db.commit()
         await db.refresh(shift)
         return shift

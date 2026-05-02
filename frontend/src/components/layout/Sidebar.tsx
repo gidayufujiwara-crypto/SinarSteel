@@ -15,6 +15,7 @@ const allMenuItems = [
   { path: '/delivery/orders', label: 'Pengiriman', icon: Truck, roles: ['super_admin', 'kasir'] },
   { path: '/report', label: 'Laporan', icon: BarChart3, roles: ['super_admin', 'kasir'] },
   { path: '/settings', label: 'Pengaturan', icon: Settings, roles: ['super_admin'] },
+  { path: '/hr/karyawan', label: 'HR', icon: Users, roles: ['super_admin'] },
 ]
 
 const Sidebar: React.FC = () => {

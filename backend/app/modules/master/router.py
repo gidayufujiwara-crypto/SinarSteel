@@ -1,4 +1,4 @@
-﻿from uuid import UUID
+from uuid import UUID
 from decimal import Decimal
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession

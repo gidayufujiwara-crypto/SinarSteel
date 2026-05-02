@@ -29,7 +29,7 @@ class Transaksi(Base):
     __tablename__ = "transaksi"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    no_transaksi: Mapped[str] = mapped_column(String(30), unique=True, nullable=False, index=True)
+    no_transaksi: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     kasir_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     pelanggan_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("pelanggan.id"))
     shift_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("shift.id"))

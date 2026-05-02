@@ -10,6 +10,7 @@ from app.modules.hr import router as hr_router
 from app.modules.delivery import router as delivery_router
 from app.modules.report import router as report_router
 from app.modules.settings.router import router as settings_router
+from app.modules.settings.upload_router import router as upload_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -33,6 +34,7 @@ app.include_router(hr_router, prefix="/hr", tags=["Human Resources"])
 app.include_router(delivery_router, prefix="/delivery", tags=["Delivery"])
 app.include_router(report_router, prefix="/report", tags=["Reports"])
 app.include_router(settings_router)
+app.include_router(upload_router, prefix="/settings")
 
 @app.get("/")
 async def root():

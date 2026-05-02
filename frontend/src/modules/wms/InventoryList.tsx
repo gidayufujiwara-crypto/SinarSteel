@@ -15,16 +15,19 @@ const InventoryList: React.FC = () => {
     try {
       const res = await wmsApi.getInventory(search || undefined)
       setInventory(res.data)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
+    } catch (err) { console.error(err) } finally { setLoading(false) }
   }
 
-  useEffect(() => {
-    fetch()
-  }, [search])
+  useEffect(() => { fetch() }, [search])
+
+  const handlePrintLabel = () => {
+    if ((window as any).electronAPI?.printLabel) {
+      (window as any).electronAPI.printLabel()
+      alert('Label sedang dicetak...')
+    } else {
+      alert('Fitur cetak hanya tersedia di aplikasi desktop.')
+    }
+  }
 
   return (
     <Card title="STOK INVENTORI" glow="cyan">
@@ -38,55 +41,25 @@ const InventoryList: React.FC = () => {
             className="w-64"
           />
         </div>
-        <Button
-          variant="secondary"
-          onClick={() => (window as any).electronAPI?.printLabel?.()}
-        >
+        <Button variant="secondary" onClick={handlePrintLabel}>
           <Printer className="w-4 h-4 mr-1" /> PRINT LABEL
         </Button>
       </div>
       <table className="table-neon w-full">
         <thead>
-          <tr>
-            <th>SKU</th>
-            <th>Nama</th>
-            <th>Stok</th>
-            <th>Harga Jual</th>
-          </tr>
+          <tr><th>SKU</th><th>Nama</th><th>Stok</th><th>Harga Jual</th></tr>
         </thead>
         <tbody>
-          {loading && (
-            <tr>
-              <td colSpan={4} className="text-center py-4 text-text-dim">
-                MEMUAT...
-              </td>
-            </tr>
-          )}
-          {!loading && inventory.length === 0 && (
-            <tr>
-              <td colSpan={4} className="text-center py-4 text-text-dim">
-                TIDAK ADA DATA
-              </td>
-            </tr>
-          )}
+          {loading && <tr><td colSpan={4} className="text-center py-4 text-text-dim">MEMUAT...</td></tr>}
+          {!loading && inventory.length === 0 && <tr><td colSpan={4} className="text-center py-4 text-text-dim">TIDAK ADA DATA</td></tr>}
           {inventory.map(prod => (
             <tr key={prod.id}>
               <td className="font-mono">{prod.sku}</td>
               <td className="flex items-center gap-1">
-                {prod.stok <= prod.stok_minimum && (
-                  <AlertTriangle className="w-4 h-4 text-[var(--neon-orange)]" />
-                )}
+                {prod.stok <= prod.stok_minimum && <AlertTriangle className="w-4 h-4 text-[var(--neon-orange)]" />}
                 {prod.nama}
               </td>
-              <td
-                className={
-                  prod.stok <= prod.stok_minimum
-                    ? 'text-[var(--neon-orange)] font-bold'
-                    : ''
-                }
-              >
-                {prod.stok}
-              </td>
+              <td className={prod.stok <= prod.stok_minimum ? 'text-[var(--neon-orange)] font-bold' : ''}>{prod.stok}</td>
               <td>Rp {Number(prod.harga_jual).toLocaleString()}</td>
             </tr>
           ))}

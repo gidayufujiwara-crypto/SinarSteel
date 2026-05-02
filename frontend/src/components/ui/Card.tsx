@@ -1,10 +1,11 @@
 import React from 'react'
 
 interface CardProps {
-  children: React.ReactNode
+  children?: React.ReactNode  // tambahkan tanda tanya
   className?: string
   title?: string
   glow?: 'cyan' | 'orange' | 'yellow' | 'green' | 'pink'
+  style?: React.CSSProperties    // tambahkan ini untuk mendukung inline style
 }
 
 const glowColors = {

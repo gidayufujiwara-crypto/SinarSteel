@@ -8,7 +8,9 @@ from app.modules.finance import schemas
 from app.modules.finance.service import FinanceService
 from app.modules.auth.models import User
 from app.modules.finance.models import ChartOfAccount
+from app.modules.finance.models import ChartOfAccount, JournalEntry, JournalEntryItem
 from sqlalchemy import select
+from sqlalchemy import select, func, and_
 
 router = APIRouter(prefix="/finance", tags=["Finance"])
 
@@ -80,3 +82,63 @@ async def create_coa(
     await db.commit()
     await db.refresh(coa)
     return coa
+
+@router.get("/ledger/{account_id}", response_model=List[dict])
+async def ledger(
+    account_id: UUID,
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
+    current_user: User = Depends(require_role("super_admin")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Menampilkan mutasi per akun (buku besar)"""
+    stmt = select(JournalEntryItem).where(JournalEntryItem.account_id == account_id)
+    if start_date and end_date:
+        stmt = stmt.join(JournalEntry).where(and_(JournalEntry.tanggal >= start_date, JournalEntry.tanggal <= end_date))
+    stmt = stmt.order_by(JournalEntry.tanggal.asc())  # perlu join
+    result = await db.execute(stmt)
+    items = result.scalars().all()
+    # Hitung saldo berjalan
+    saldo = 0
+    ledger_lines = []
+    for item in items:
+        saldo += item.debit - item.kredit
+        ledger_lines.append({
+            "tanggal": item.jurnal.tanggal,
+            "no_jurnal": item.jurnal.no_jurnal,
+            "keterangan": item.deskripsi or item.jurnal.keterangan,
+            "debit": item.debit,
+            "kredit": item.kredit,
+            "saldo": saldo,
+        })
+    return ledger_lines
+
+@router.get("/trial-balance", response_model=List[dict])
+async def trial_balance(
+    current_user: User = Depends(require_role("super_admin")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Neraca saldo: ringkasan debit/kredit semua akun"""
+    result = await db.execute(
+        select(
+            ChartOfAccount.kode,
+            ChartOfAccount.nama,
+            func.coalesce(func.sum(JournalEntryItem.debit), 0).label("total_debit"),
+            func.coalesce(func.sum(JournalEntryItem.kredit), 0).label("total_kredit"),
+        )
+        .outerjoin(JournalEntryItem, JournalEntryItem.account_id == ChartOfAccount.id)
+        .group_by(ChartOfAccount.id, ChartOfAccount.kode, ChartOfAccount.nama)
+        .order_by(ChartOfAccount.kode)
+    )
+    rows = result.all()
+    return [
+        {
+            "kode": row.kode,
+            "nama": row.nama,
+            "debit": float(row.total_debit),
+            "kredit": float(row.total_kredit),
+            "saldo_debit": float(row.total_debit - row.total_kredit) if row.total_debit > row.total_kredit else 0,
+            "saldo_kredit": float(row.total_kredit - row.total_debit) if row.total_kredit > row.total_debit else 0,
+        }
+        for row in rows
+    ]

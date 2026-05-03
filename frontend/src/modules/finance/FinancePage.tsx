@@ -6,7 +6,8 @@ const tabs = [
   { to: '/finance/journals', label: 'Jurnal Umum', icon: BookOpen },
   { to: '/finance/ledger', label: 'Buku Besar', icon: FileText },
   { to: '/finance/cash', label: 'Kas & Biaya', icon: Banknote },
-  { to: '/finance/reports', label: 'Laporan', icon: BarChart3 },
+  { to: '/finance/reports', label: 'Laba Rugi', icon: BarChart3 },
+  { to: '/finance/trial-balance', label: 'Neraca Saldo', icon: BarChart3 },
 ]
 
 const FinancePage: React.FC = () => {

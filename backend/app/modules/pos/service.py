@@ -223,6 +223,55 @@ class TransaksiService:
                 nominal_cod=nominal_cod,
             )
 
+                # === Auto-journal ke Finance ===
+        try:
+            from app.modules.finance.service import FinanceService
+            from app.modules.finance.models import ChartOfAccount
+
+            # Cari akun yang diperlukan
+            # Asumsi: akun "Kas" kode 101, "Penjualan" kode 400, "HPP" kode 500, "Persediaan" kode 103
+            # Jika tidak ditemukan, buat jurnal tetap berjalan tanpa error (catch exception)
+            akun_kas = (await db.execute(select(ChartOfAccount).where(ChartOfAccount.kode == "101"))).scalar_one_or_none()
+            akun_penjualan = (await db.execute(select(ChartOfAccount).where(ChartOfAccount.kode == "400"))).scalar_one_or_none()
+            akun_hpp = (await db.execute(select(ChartOfAccount).where(ChartOfAccount.kode == "500"))).scalar_one_or_none()
+            akun_persediaan = (await db.execute(select(ChartOfAccount).where(ChartOfAccount.kode == "103"))).scalar_one_or_none()
+
+            if akun_kas and akun_penjualan and akun_hpp and akun_persediaan:
+                items_jurnal = []
+
+                # Jurnal penjualan: Kas (D) vs Penjualan (K)
+                if jenis in ("tunai", "transfer", "qris"):
+                    items_jurnal.append({"account_id": akun_kas.id, "debit": total_setelah, "kredit": 0, "deskripsi": f"Penjualan {no_trx}"})
+                elif jenis == "cod":
+                    # COD: Piutang COD (anggap kas nanti saat diterima)
+                    akun_piutang_cod = (await db.execute(select(ChartOfAccount).where(ChartOfAccount.kode == "102"))).scalar_one_or_none() or akun_kas
+                    items_jurnal.append({"account_id": akun_piutang_cod.id, "debit": total_setelah, "kredit": 0, "deskripsi": f"COD {no_trx}"})
+                items_jurnal.append({"account_id": akun_penjualan.id, "debit": 0, "kredit": total_setelah, "deskripsi": f"Pendapatan {no_trx}"})
+
+                # Jurnal HPP: HPP (D) vs Persediaan (K)
+                total_hpp = Decimal(0)
+                for item in item_list:
+                    produk = await db.get(Produk, item["produk_id"])
+                    if produk:
+                        total_hpp += produk.hpp_rata_rata * item["qty"]
+                if total_hpp > 0:
+                    items_jurnal.append({"account_id": akun_hpp.id, "debit": total_hpp, "kredit": 0, "deskripsi": f"HPP {no_trx}"})
+                    items_jurnal.append({"account_id": akun_persediaan.id, "debit": 0, "kredit": total_hpp, "deskripsi": f"Pengurangan persediaan {no_trx}"})
+
+                await FinanceService.create_journal(
+                    db,
+                    {
+                        "tanggal": date.today(),
+                        "keterangan": f"Auto-jurnal dari transaksi {no_trx}",
+                        "tipe": "penjualan",
+                        "referensi": str(transaksi.id),
+                        "items": items_jurnal,
+                    },
+                    kasir
+                )
+        except Exception as e:
+            print(f"Gagal membuat auto-jurnal: {e}")
+
         return transaksi
 
     @staticmethod

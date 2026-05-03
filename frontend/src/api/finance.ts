@@ -18,4 +18,8 @@ export const financeApi = {
   getCashList: (params?: { start_date?: string; end_date?: string }) =>
     apiClient.get('/finance/cash', { params }),
   createCash: (data: any) => apiClient.post('/finance/cash', data),
+
+  getLedger: (accountId: string, params?: { start_date?: string; end_date?: string }) =>
+  apiClient.get(`/finance/ledger/${accountId}`, { params }),
+  getTrialBalance: () => apiClient.get('/finance/trial-balance'),
 }

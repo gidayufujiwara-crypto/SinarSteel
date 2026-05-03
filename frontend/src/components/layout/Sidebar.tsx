@@ -13,10 +13,10 @@ const allMenuItems = [
   { path: '/pos', label: 'POS Kasir', icon: ShoppingCart, roles: ['super_admin', 'kasir'] },
   { path: '/wms', label: 'Gudang', icon: Warehouse, roles: ['super_admin', 'checker', 'gudang'] },
   { path: '/delivery/orders', label: 'Pengiriman', icon: Truck, roles: ['super_admin', 'kasir'] },
-  { path: '/report', label: 'Laporan', icon: BarChart3, roles: ['super_admin', 'kasir'] },
-  { path: '/settings', label: 'Pengaturan', icon: Settings, roles: ['super_admin'] },
+  { path: '/report', label: 'Laporan', icon: BarChart3, roles: ['super_admin', 'kasir'] },  
   { path: '/hr/karyawan', label: 'HR', icon: Users, roles: ['super_admin'] },
   { path: '/finance', label: 'Keuangan', icon: DollarSign, roles: ['super_admin'] },
+  { path: '/settings', label: 'Pengaturan', icon: Settings, roles: ['super_admin'] },
 ]
 
 const Sidebar: React.FC = () => {

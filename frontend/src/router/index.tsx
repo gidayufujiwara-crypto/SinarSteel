@@ -30,6 +30,7 @@ import COAList from '../modules/finance/COAList'
 import CashPage from '../modules/finance/CashPage'
 import LedgerPage from '../modules/finance/LedgerPage'
 import FinanceReportPage from '../modules/finance/ReportPage'
+import TrialBalancePage from '../modules/finance/TrialBalancePage'
 
 const DashboardPage = lazy(() => import('../modules/dashboard/DashboardPage'))
 const PosPage = lazy(() => import('../modules/pos/PosPage'))
@@ -92,6 +93,7 @@ const AppRouter = () => (
           <Route path="ledger" element={<LedgerPage />} />
           <Route path="cash" element={<CashPage />} />
           <Route path="reports" element={<FinanceReportPage />} />
+          <Route path="trial-balance" element={<TrialBalancePage />} />
         </Route>
         <Route path="/pos" element={<PosPage />} />
         <Route path="/wms" element={<WmsPage />} />

@@ -24,6 +24,12 @@ import DeliveryOrderList from '../modules/delivery/DeliveryOrderList'
 import DeliveryOrderForm from '../modules/delivery/DeliveryOrderForm'
 import SettingsPage from '../modules/settings/SettingsPage'
 import KategoriSatuanList from '../modules/master/KategoriSatuanList'
+import FinancePage from '../modules/finance/FinancePage'
+import JournalList from '../modules/finance/JournalList'
+import COAList from '../modules/finance/COAList'
+import CashPage from '../modules/finance/CashPage'
+import LedgerPage from '../modules/finance/LedgerPage'
+import FinanceReportPage from '../modules/finance/ReportPage'
 
 const DashboardPage = lazy(() => import('../modules/dashboard/DashboardPage'))
 const PosPage = lazy(() => import('../modules/pos/PosPage'))
@@ -78,6 +84,14 @@ const AppRouter = () => (
         <Route path="/delivery" element={<DeliveryPage />}>
           <Route index element={<DeliveryOrderList />} />
           <Route path="orders" element={<DeliveryOrderList />} />
+        </Route>
+        <Route path="/finance" element={<FinancePage />}>
+          <Route index element={<JournalList />} />
+          <Route path="journals" element={<JournalList />} />
+          <Route path="coa" element={<COAList />} />
+          <Route path="ledger" element={<LedgerPage />} />
+          <Route path="cash" element={<CashPage />} />
+          <Route path="reports" element={<FinanceReportPage />} />
         </Route>
         <Route path="/pos" element={<PosPage />} />
         <Route path="/wms" element={<WmsPage />} />

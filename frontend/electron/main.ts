@@ -1,7 +1,36 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
+import { spawn } from 'child_process';
+import { setupAutoUpdater } from './updater';
 
 const isDev = process.env.NODE_ENV === 'development';
+
+// Jalankan backend sebagai child process
+function startBackend() {
+  const backendPath = isDev
+    ? path.join(__dirname, '..', '..', 'resources', 'backend', 'backend.exe')
+    : path.join(process.resourcesPath, 'backend', 'backend.exe');
+
+  console.log('Starting backend from:', backendPath);
+  const backend = spawn(backendPath, [], {
+    stdio: 'pipe',
+    windowsHide: true,
+  });
+
+  backend.stdout.on('data', (data) => {
+    console.log(`Backend: ${data}`);
+  });
+
+  backend.stderr.on('data', (data) => {
+    console.error(`Backend error: ${data}`);
+  });
+
+  backend.on('close', (code) => {
+    console.log(`Backend process exited with code ${code}`);
+  });
+
+  return backend;
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -22,8 +51,13 @@ function createWindow() {
 
   // IPC: Print receipt handler
   ipcMain.handle('print-receipt', async (_event, content: string) => {
-    // Untuk sekarang, hanya log. Akan diimplementasi penuh di Phase 4 (POS)
     console.log('Print receipt:', content);
+    return { success: true };
+  });
+
+  // IPC: Print label handler
+  ipcMain.handle('print-label', async () => {
+    console.log('Print label dipanggil');
     return { success: true };
   });
 
@@ -33,10 +67,14 @@ function createWindow() {
   } else {
     win.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
+
+  return win;
 }
 
 app.whenReady().then(() => {
-  createWindow();
+  startBackend();                     // ← jalankan backend
+  const win = createWindow();
+  setupAutoUpdater(win);              // ← setup update otomatis
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -45,4 +83,8 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  // backend akan mati sendiri karena parent process exit
 });

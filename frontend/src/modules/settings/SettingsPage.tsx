@@ -4,12 +4,14 @@ import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Modal from '../../components/ui/Modal'
-import { Plus, Trash2, Printer } from 'lucide-react'
+import { Plus, Trash2, Printer, Database } from 'lucide-react'
 import apiClient from '../../api/client'
 import { settingsApi } from '../../api/pos'
+import BackupRestorePage from './backupRestorePage'
 
 const SettingsPage: React.FC = () => {
   const user = useAuthStore((state) => state.user)
+  const [activeTab, setActiveTab] = useState<'general' | 'backup'>('general')
   const [users, setUsers] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
@@ -21,13 +23,11 @@ const SettingsPage: React.FC = () => {
   const [storeAddress, setStoreAddress] = useState(localStorage.getItem('storeAddress') || '')
   const [storePhone, setStorePhone] = useState(localStorage.getItem('storePhone') || '')
 
-  // Settings from backend
   const [bank, setBank] = useState('')
   const [rekening, setRekening] = useState('')
   const [atasNama, setAtasNama] = useState('')
   const [qrisUrl, setQrisUrl] = useState('')
 
-  // Logo
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoUrl, setLogoUrl] = useState(localStorage.getItem('logoUrl') || '')
 
@@ -98,8 +98,23 @@ const SettingsPage: React.FC = () => {
     alert('Pengaturan pembayaran disimpan!')
   }
 
-  const handleCreate = async () => { /* ... */ }
-  const handleDelete = async () => { /* ... */ }
+  const handleCreate = async () => {
+    try {
+      await apiClient.post('/auth/register', newUser)
+      setShowCreate(false)
+      setNewUser({ username: '', password: '', full_name: '', role: 'karyawan' })
+      fetchUsers()
+    } catch (err: any) { alert(err.response?.data?.detail || 'Gagal membuat user') }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId) return
+    try {
+      await apiClient.delete(`/auth/users/${deleteId}`)
+      setDeleteId(null)
+      fetchUsers()
+    } catch (err: any) { alert(err.response?.data?.detail || 'Gagal menghapus user') }
+  }
 
   return (
     <div>
@@ -107,54 +122,102 @@ const SettingsPage: React.FC = () => {
 
       {user?.role === 'super_admin' && (
         <>
-          {/* Manajemen User */}
-          <Card title="MANAJEMEN USER" glow="cyan">
-            {/* ... (sama seperti sebelumnya) ... */}
-          </Card>
+          {/* Tab Navigation */}
+          <div className="flex gap-2 mb-6 border-b border-[rgba(0,245,255,0.15)] pb-2">
+            <button
+              onClick={() => setActiveTab('general')}
+              className={`px-4 py-2 rounded-t-lg transition-colors text-sm font-semibold tracking-wide ${
+                activeTab === 'general'
+                  ? 'bg-bg-card text-neon-cyan border border-[rgba(0,245,255,0.3)] border-b-transparent shadow-[0_0_10px_rgba(0,245,255,0.1)]'
+                  : 'text-text-dim hover:text-neon-cyan hover:bg-[rgba(0,245,255,0.04)]'
+              }`}
+            >
+              UMUM
+            </button>
+            <button
+              onClick={() => setActiveTab('backup')}
+              className={`px-4 py-2 rounded-t-lg transition-colors text-sm font-semibold tracking-wide flex items-center gap-2 ${
+                activeTab === 'backup'
+                  ? 'bg-bg-card text-neon-cyan border border-[rgba(0,245,255,0.3)] border-b-transparent shadow-[0_0_10px_rgba(0,245,255,0.1)]'
+                  : 'text-text-dim hover:text-neon-cyan hover:bg-[rgba(0,245,255,0.04)]'
+              }`}
+            >
+              <Database className="w-4 h-4" />
+              BACKUP & RESTORE
+            </button>
+          </div>
 
-          {/* Printer */}
-          <Card title="PENGATURAN PRINTER" glow="cyan" className="mt-6">
-            <div className="space-y-4 max-w-md">
-              <Input label="Nama Printer Thermal" value={printerName} onChange={e => saveLocal('printerName', e.target.value)} />
-              <div className="flex gap-2">
-                <Button variant="primary" onClick={testPrint}>
-                  <Printer className="w-4 h-4 mr-1" /> TEST PRINT
-                </Button>
-              </div>
-              <p className="text-text-dim text-xs">Pastikan printer thermal terhubung dan driver terinstal.</p>
-            </div>
-          </Card>
+          {/* Konten Tab */}
+          {activeTab === 'general' ? (
+            <>
+              {/* Manajemen User */}
+              <Card title="MANAJEMEN USER" glow="cyan">
+                <div className="flex justify-between mb-4">
+                  <Button onClick={() => setShowCreate(true)}><Plus className="w-4 h-4 mr-1" /> TAMBAH USER</Button>
+                </div>
+                <table className="table-neon w-full">
+                  <thead><tr><th>Username</th><th>Nama Lengkap</th><th>Role</th><th>Aktif</th><th>Aksi</th></tr></thead>
+                  <tbody>
+                    {loading && <tr><td colSpan={5} className="text-center py-4 text-text-dim">MEMUAT...</td></tr>}
+                    {!loading && users.length === 0 && <tr><td colSpan={5} className="text-center py-4 text-text-dim">TIDAK ADA USER</td></tr>}
+                    {users.map(u => (
+                      <tr key={u.id}>
+                        <td className="font-mono">{u.username}</td>
+                        <td>{u.full_name}</td>
+                        <td><span className={`tag ${u.role==='super_admin'?'tag-pink':u.role==='manager'?'tag-orange':'tag-cyan'}`}>{u.role.replace('_',' ')}</span></td>
+                        <td>{u.is_active ? '✅' : '❌'}</td>
+                        <td><button onClick={() => setDeleteId(u.id)} className="text-[var(--neon-pink)] hover:text-red-400"><Trash2 className="w-4 h-4" /></button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
 
-          {/* Informasi Toko */}
-          <Card title="INFORMASI TOKO" glow="cyan" className="mt-6">
-            <div className="space-y-4 max-w-md">
-              <Input label="Nama Toko" value={storeName} onChange={e => saveLocal('storeName', e.target.value)} />
-              <Input label="Alamat" value={storeAddress} onChange={e => saveLocal('storeAddress', e.target.value)} />
-              <Input label="Telepon / WA" value={storePhone} onChange={e => saveLocal('storePhone', e.target.value)} />
-              {/* Upload Logo */}
-              <div>
-                <label className="text-xs font-semibold tracking-[1px] uppercase text-text-dim">Logo Toko</label>
-                <input type="file" accept="image/*" onChange={e => setLogoFile(e.target.files?.[0] || null)} className="mt-1" />
-                <Button variant="secondary" onClick={handleUploadLogo} className="mt-2">UPLOAD LOGO</Button>
-                {logoUrl && <img src={logoUrl} alt="Logo" className="w-24 h-24 object-contain mt-2 border border-[rgba(0,245,255,0.2)] rounded" />}
-              </div>
-            </div>
-          </Card>
+              {/* Printer */}
+              <Card title="PENGATURAN PRINTER" glow="cyan" className="mt-6">
+                <div className="space-y-4 max-w-md">
+                  <Input label="Nama Printer Thermal" value={printerName} onChange={e => saveLocal('printerName', e.target.value)} />
+                  <Button variant="primary" onClick={testPrint}>
+                    <Printer className="w-4 h-4 mr-1" /> TEST PRINT
+                  </Button>
+                  <p className="text-text-dim text-xs">Pastikan printer thermal terhubung dan driver terinstal.</p>
+                </div>
+              </Card>
 
-          {/* Pengaturan Pembayaran */}
-          <Card title="PENGATURAN PEMBAYARAN" glow="cyan" className="mt-6">
-            <div className="space-y-4 max-w-md">
-              <Input label="Nama Bank" value={bank} onChange={e => setBank(e.target.value)} />
-              <Input label="Nomor Rekening" value={rekening} onChange={e => setRekening(e.target.value)} />
-              <Input label="Atas Nama" value={atasNama} onChange={e => setAtasNama(e.target.value)} />
-              <Input label="URL Gambar QRIS" value={qrisUrl} onChange={e => setQrisUrl(e.target.value)} />
-              {qrisUrl && <img src={qrisUrl} alt="QRIS" className="w-24 h-24 object-contain border border-[rgba(0,245,255,0.2)] rounded-lg" />}
-              <Button variant="primary" onClick={savePaymentSettings}>SIMPAN</Button>
-            </div>
-          </Card>
+              {/* Informasi Toko */}
+              <Card title="INFORMASI TOKO" glow="cyan" className="mt-6">
+                <div className="space-y-4 max-w-md">
+                  <Input label="Nama Toko" value={storeName} onChange={e => saveLocal('storeName', e.target.value)} />
+                  <Input label="Alamat" value={storeAddress} onChange={e => saveLocal('storeAddress', e.target.value)} />
+                  <Input label="Telepon / WA" value={storePhone} onChange={e => saveLocal('storePhone', e.target.value)} />
+                  <div>
+                    <label className="text-xs font-semibold tracking-[1px] uppercase text-text-dim">Logo Toko</label>
+                    <input type="file" accept="image/*" onChange={e => setLogoFile(e.target.files?.[0] || null)} className="mt-1" />
+                    <Button variant="secondary" onClick={handleUploadLogo} className="mt-2">UPLOAD LOGO</Button>
+                    {logoUrl && <img src={logoUrl} alt="Logo" className="w-24 h-24 object-contain mt-2 border border-[rgba(0,245,255,0.2)] rounded" />}
+                  </div>
+                </div>
+              </Card>
+
+              {/* Pengaturan Pembayaran */}
+              <Card title="PENGATURAN PEMBAYARAN" glow="cyan" className="mt-6">
+                <div className="space-y-4 max-w-md">
+                  <Input label="Nama Bank" value={bank} onChange={e => setBank(e.target.value)} />
+                  <Input label="Nomor Rekening" value={rekening} onChange={e => setRekening(e.target.value)} />
+                  <Input label="Atas Nama" value={atasNama} onChange={e => setAtasNama(e.target.value)} />
+                  <Input label="URL Gambar QRIS" value={qrisUrl} onChange={e => setQrisUrl(e.target.value)} />
+                  {qrisUrl && <img src={qrisUrl} alt="QRIS" className="w-24 h-24 object-contain border border-[rgba(0,245,255,0.2)] rounded-lg" />}
+                  <Button variant="primary" onClick={savePaymentSettings}>SIMPAN</Button>
+                </div>
+              </Card>
+            </>
+          ) : (
+            <BackupRestorePage />
+          )}
         </>
       )}
 
+      {/* Modals Create & Delete User */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title="TAMBAH USER" onConfirm={handleCreate} confirmText="SIMPAN">
         <div className="space-y-3">
           <Input label="Username" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
@@ -164,12 +227,11 @@ const SettingsPage: React.FC = () => {
             <label className="text-xs font-semibold tracking-[1px] uppercase text-text-dim">Role</label>
             <select value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})} className="input-neon w-full mt-1">
               <option value="super_admin">Super Admin</option>
-              <option value="manager">Manager</option>
               <option value="kasir">Kasir</option>
+              <option value="checker">Checker</option>
               <option value="gudang">Gudang</option>
-              <option value="hr_admin">HR Admin</option>
-              <option value="driver">Driver</option>
-              <option value="karyawan">Karyawan</option>
+              <option value="supir">Supir</option>
+              <option value="kernet">Kernet</option>
             </select>
           </div>
         </div>

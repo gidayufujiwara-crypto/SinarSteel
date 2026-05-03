@@ -11,6 +11,7 @@ from app.modules.delivery import router as delivery_router
 from app.modules.report import router as report_router
 from app.modules.settings.router import router as settings_router
 from app.modules.settings.upload_router import router as upload_router
+from app.modules.system.router import router as system_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -35,6 +36,7 @@ app.include_router(delivery_router, prefix="/delivery", tags=["Delivery"])
 app.include_router(report_router, prefix="/report", tags=["Reports"])
 app.include_router(settings_router)
 app.include_router(upload_router, prefix="/settings")
+app.include_router(system_router)
 
 @app.get("/")
 async def root():

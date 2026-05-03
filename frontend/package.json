@@ -16,6 +16,8 @@
     "@reduxjs/toolkit": "^1.9.7",
     "axios": "^1.6.7",
     "date-fns": "^3.3.1",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.8.3",
     "immer": "^10.0.3",
     "lucide-react": "^0.312.0",
     "react": "^18.2.0",
@@ -57,11 +59,25 @@
       "dist/**/*",
       "dist-electron/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "resources/backend",
+        "to": "backend"
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "gidayufujiwara-crypto",
+        "repo": "SinarSteel"
+      }
+    ],
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "SinarSteel"
     },
     "win": {
       "target": "nsis",

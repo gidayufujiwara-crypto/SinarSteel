@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import {
   LayoutDashboard, Database, ShoppingCart, Warehouse,
-  Users, Truck, BarChart3, Settings
+  Users, Truck, BarChart3, Settings, DollarSign
 } from 'lucide-react'
 
 // Definisi menu lengkap dengan role yang diizinkan
@@ -16,6 +16,7 @@ const allMenuItems = [
   { path: '/report', label: 'Laporan', icon: BarChart3, roles: ['super_admin', 'kasir'] },
   { path: '/settings', label: 'Pengaturan', icon: Settings, roles: ['super_admin'] },
   { path: '/hr/karyawan', label: 'HR', icon: Users, roles: ['super_admin'] },
+  { path: '/finance', label: 'Keuangan', icon: DollarSign, roles: ['super_admin'] },
 ]
 
 const Sidebar: React.FC = () => {

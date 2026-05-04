@@ -9,15 +9,14 @@ import Input from '../../components/ui/Input'
 import Modal from '../../components/ui/Modal'
 import StrukModal from '../../components/pos/StrukModal'
 import {
-  Plus , Minus , Trash2 , LogIn , LogOut ,
-  Banknote, QrCode, Wallet, Truck, RefreshCw, Eye, CreditCard
+  Plus, Minus, Trash2, LogIn, LogOut,
+  CreditCard, Banknote, QrCode, Wallet, Truck, RefreshCw, Eye
 } from 'lucide-react'
 
 const PosPage: React.FC = () => {
   const store = usePosStore()
   const user = useAuthStore(state => state.user)
 
-  // State untuk live search
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedTerm, setDebouncedTerm] = useState('')
   const [products, setProducts] = useState<any[]>([])
@@ -44,22 +43,22 @@ const PosPage: React.FC = () => {
   const [strukData, setStrukData] = useState<any>(null)
   const [showStruk, setShowStruk] = useState(false)
 
+  // State untuk Tarik Tunai
+  const [showPickup, setShowPickup] = useState(false)
+  const [pickupAmount, setPickupAmount] = useState(0)
+  const [pickupNote, setPickupNote] = useState('')
+  const [collection, setCollection] = useState<any>(null)
+
   // ====================== LIVE SEARCH ======================
-  // Debounce: menunggu 300ms setelah user berhenti mengetik
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedTerm(searchTerm)
-    }, 300)
+    const timer = setTimeout(() => setDebouncedTerm(searchTerm), 300)
     return () => clearTimeout(timer)
   }, [searchTerm])
 
-  // Panggil API setiap kali debouncedTerm berubah
   useEffect(() => {
     if (debouncedTerm.trim()) {
       produkApi.getAll(debouncedTerm)
-        .then(res => {
-          setProducts(res.data.filter((p: any) => p.is_active && p.stok > 0))
-        })
+        .then(res => setProducts(res.data.filter((p: any) => p.is_active && p.stok > 0)))
         .catch(console.error)
     } else {
       setProducts([])
@@ -85,19 +84,127 @@ const PosPage: React.FC = () => {
   const grandTotal = cartTotal - store.diskon_total
   const kembalian = store.jenis_pembayaran === 'tunai' ? store.bayar - grandTotal : 0
 
-  const handleOpenShiftSubmit = async () => { /* ... */ }
-  const handleCloseShiftSubmit = async () => { /* ... */ }
-  const handleSubmit = async () => { /* ... */ }
-  const handleVoidRequest = async (transaksiId: string) => { /* ... */ }
-  const handleVoidConfirm = async (transaksiId: string) => { /* ... */ }
-  const handleRetur = (trx: any) => { /* ... */ }
-  const loadTransactions = useCallback(async () => { /* ... */ }, [])
+  const handleOpenShiftSubmit = async () => {
+    const saldo = parseFloat(shiftInputValue)
+    if (isNaN(saldo)) return
+    try {
+      await store.openShift(saldo)
+      setShowShiftModal(null)
+      setShiftInputValue('')
+    } catch (err: any) {
+      alert('Gagal membuka shift: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const handleCloseShiftSubmit = async () => {
+    const setoran = parseFloat(shiftInputValue)
+    if (isNaN(setoran)) return
+    try {
+      await store.closeShift(setoran)
+      setShowShiftModal(null)
+      setShiftInputValue('')
+    } catch (err: any) {
+      alert('Gagal menutup shift: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const handleSubmit = async () => {
+    try {
+      let deliveryData = undefined
+      if (metodePengiriman === 'kurir') {
+        deliveryData = {
+          nama_penerima: pengirimanForm.nama_penerima,
+          alamat: pengirimanForm.alamat,
+          kota: pengirimanForm.kota,
+          telepon: pengirimanForm.telepon,
+        }
+      }
+      const trx = await store.submitTransaction(deliveryData)
+      setShowPayment(false)
+      setStrukData({ transaksi: trx, cart: store.cart, total: cartTotal, diskon: store.diskon_total, grandTotal, pengirimanForm })
+      setShowStruk(true)
+    } catch {}
+  }
+
+  const handleVoidRequest = async (transaksiId: string) => {
+    try {
+      await posApi.requestVoidPin(transaksiId)
+      alert('PIN void telah dikirim ke aplikasi super admin. Masukkan PIN yang diterima.')
+      setShowVoid(true)
+      setVoidPin('')
+    } catch (err: any) {
+      alert('Gagal request void: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const handleVoidConfirm = async (transaksiId: string) => {
+    try {
+      await posApi.verifyVoidPin(transaksiId, voidPin)
+      setShowVoid(false)
+      setVoidPin('')
+      loadTransactions()
+    } catch (err: any) {
+      alert('Gagal void: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const handleRetur = (trx: any) => {
+    const items = trx.items.map((item: any) => ({
+      produk_id: item.produk_id,
+      qty: item.qty,
+      diskon_per_item: 0,
+    }))
+    store.returTransaksi({ transaksi_id: trx.id, items, diskon_total: 0 }).then(() => {
+      loadTransactions()
+    }).catch((err: any) => alert(err.response?.data?.detail || err.message))
+  }
+
+  const loadTransactions = useCallback(async () => {
+    try {
+      const res = await posApi.getTransaksiList(100)
+      setTransactions(res.data)
+    } catch {}
+  }, [])
 
   useEffect(() => {
     if (showTransactions) loadTransactions()
   }, [showTransactions, loadTransactions])
 
-  const calculateVariance = () => { /* ... */ }
+  const calculateVariance = () => {
+    if (!store.shift) return
+    const expected = (store.shift.saldo_awal || 0) + (store.shift.total_tunai || 0)
+    const input = parseFloat(shiftInputValue) || 0
+    setShiftVariance(input - expected)
+  }
+
+  const openPickupModal = async () => {
+    try {
+      const res = await posApi.getShiftCollection()
+      setCollection(res.data)
+      setShowPickup(true)
+    } catch (err: any) {
+      alert('Gagal mengambil data koleksi: ' + (err.response?.data?.detail || err.message))
+    }
+  }
+
+  const handlePickup = async () => {
+    if (pickupAmount <= 0) {
+      alert('Jumlah penarikan harus lebih dari 0')
+      return
+    }
+    try {
+      await posApi.createPickup({ jumlah: pickupAmount, keterangan: pickupNote })
+      alert('Penarikan tunai berhasil dicatat.')
+      setShowPickup(false)
+      setPickupAmount(0)
+      setPickupNote('')
+      // Refresh collection
+      const res = await posApi.getShiftCollection()
+      setCollection(res.data)
+    } catch (err: any) {
+      alert('Gagal: ' + (err.response?.data?.detail || err.message))
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -117,6 +224,9 @@ const PosPage: React.FC = () => {
               <LogIn className="w-4 h-4 mr-1" /> BUKA SHIFT
             </Button>
           )}
+          <Button variant="secondary" onClick={openPickupModal} disabled={!store.shift}>
+            <Banknote className="w-4 h-4 mr-1" /> TARIK TUNAI
+          </Button>
           <Button variant="secondary" onClick={() => { setShowTransactions(true) }}>
             RIWAYAT
           </Button>
@@ -129,6 +239,7 @@ const PosPage: React.FC = () => {
 
       {store.shift && (
         <div className="flex gap-4 flex-1 overflow-hidden">
+          {/* Panel Kiri – Cari Produk & Keranjang */}
           <div className="flex-1 flex flex-col gap-4" style={{ maxHeight: 'calc(100vh - 120px)' }}>
             <Card title="CARI PRODUK" glow="cyan">
               <div className="flex gap-2 mb-4">
@@ -174,6 +285,7 @@ const PosPage: React.FC = () => {
             </Card>
           </div>
 
+          {/* Panel Kanan – Ringkasan & Pembayaran */}
           <div className="w-80 flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
             <Card title="RINGKASAN" glow="yellow">
               <div className="space-y-2 text-sm font-semibold">
@@ -255,12 +367,14 @@ const PosPage: React.FC = () => {
         </div>
       )}
 
+      {/* Modal Konfirmasi Pembayaran */}
       <Modal open={showPayment} onClose={() => setShowPayment(false)} title="KONFIRMASI PEMBAYARAN" onConfirm={handleSubmit} confirmText="PROSES" isLoading={store.loading}>
         <p className="text-neon-cyan font-bold text-lg">Grand Total: Rp {grandTotal.toLocaleString()}</p>
         {store.jenis_pembayaran === 'tunai' && <p>Bayar: Rp {store.bayar.toLocaleString()} | Kembalian: Rp {kembalian.toLocaleString()}</p>}
         {store.error && <p className="text-[var(--neon-pink)] mt-2">{store.error}</p>}
       </Modal>
 
+      {/* Modal Riwayat Transaksi */}
       <Modal open={showTransactions} onClose={() => setShowTransactions(false)} title="RIWAYAT TRANSAKSI">
         <div className="max-h-96 overflow-y-auto space-y-2">
           {transactions.length === 0 && <p className="text-text-dim text-center py-4">Tidak ada transaksi</p>}
@@ -298,6 +412,7 @@ const PosPage: React.FC = () => {
         )}
       </Modal>
 
+      {/* Modal Detail Transaksi */}
       {detailTrx && (
         <Modal open={true} onClose={() => setDetailTrx(null)} title={`DETAIL ${detailTrx.no_transaksi}`}>
           <div className="text-sm space-y-2 max-h-[70vh] overflow-y-auto">
@@ -330,6 +445,7 @@ const PosPage: React.FC = () => {
         </Modal>
       )}
 
+      {/* Modal Buka/Tutup Shift */}
       <Modal open={showShiftModal !== null} onClose={() => setShowShiftModal(null)} title={showShiftModal === 'buka' ? 'BUKA SHIFT' : 'TUTUP SHIFT'} onConfirm={showShiftModal === 'buka' ? handleOpenShiftSubmit : handleCloseShiftSubmit} confirmText="SIMPAN">
         <Input
           label={showShiftModal === 'buka' ? 'Saldo Awal (Rp)' : 'Total Setoran (Rp)'}
@@ -346,6 +462,52 @@ const PosPage: React.FC = () => {
             </p>
           </div>
         )}
+      </Modal>
+
+      {/* Modal Tarik Tunai */}
+      <Modal
+        open={showPickup}
+        onClose={() => setShowPickup(false)}
+        title="TARIK TUNAI DARI LACI"
+        onConfirm={handlePickup}
+        confirmText="SIMPAN"
+      >
+        <div className="space-y-3">
+          {collection && (
+            <>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="text-text-dim">Total Tunai</div>
+                <div className="text-right">Rp {Number(collection.total_tunai).toLocaleString()}</div>
+                <div className="text-text-dim">Total QRIS</div>
+                <div className="text-right">Rp {Number(collection.total_qris).toLocaleString()}</div>
+                <div className="text-text-dim">Total Transfer</div>
+                <div className="text-right">Rp {Number(collection.total_transfer).toLocaleString()}</div>
+                <div className="text-text-dim">Total COD</div>
+                <div className="text-right">Rp {Number(collection.total_cod).toLocaleString()}</div>
+                <div className="text-text-dim font-bold">Grand Total</div>
+                <div className="text-right font-bold">Rp {Number(collection.grand_total).toLocaleString()}</div>
+                <hr className="col-span-2 border-[rgba(0,245,255,0.15)]" />
+                <div className="text-text-dim">Total Penarikan</div>
+                <div className="text-right">Rp {Number(collection.total_pickup).toLocaleString()}</div>
+                <div className="text-neon-cyan font-bold">Sisa Tunai di Laci</div>
+                <div className="text-right text-neon-cyan font-bold">Rp {Number(collection.sisa_tunai).toLocaleString()}</div>
+              </div>
+            </>
+          )}
+          <Input
+            label="Jumlah Penarikan"
+            type="number"
+            value={pickupAmount}
+            onChange={e => setPickupAmount(parseFloat(e.target.value))}
+            min={1}
+          />
+          <Input
+            label="Keterangan"
+            value={pickupNote}
+            onChange={e => setPickupNote(e.target.value)}
+            placeholder="Misal: Setor bank, biaya operasional"
+          />
+        </div>
       </Modal>
 
       {strukData && <StrukModal open={showStruk} onClose={() => { setShowStruk(false); store.clearCart() }} {...strukData} />}

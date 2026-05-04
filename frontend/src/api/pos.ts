@@ -11,6 +11,9 @@ export const posApi = {
   requestVoidPin: (transaksiId: string) => apiClient.post(`/pos/transaksi/${transaksiId}/request-void`),
   verifyVoidPin: (transaksiId: string, pin: string) => apiClient.post(`/pos/transaksi/${transaksiId}/void`, { pin }),
   returTransaksi: (data: any) => apiClient.post('/pos/retur', data),
+  switchPayment: (transaksiId: string, jenis: string) =>apiClient.put(`/pos/transaksi/${transaksiId}/switch-payment`, { jenis_pembayaran: jenis }),
+  getShiftCollection: () => apiClient.get('/pos/shift/collection'),
+  createPickup: (data: { jumlah: number; keterangan?: string }) => apiClient.post('/pos/shift/pickup', data),
 }
 
 export const settingsApi = {

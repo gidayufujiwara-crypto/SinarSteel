@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { deliveryApi } from '../../api/delivery'
+import { posApi } from '../../api/pos'
 import { useAuthStore } from '../../store/authStore'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import Modal from '../../components/ui/Modal'
-import { Check, Eye, ArrowRight } from 'lucide-react'
+import { Check, Eye, ArrowRight, CreditCard } from 'lucide-react'
 
 const NEXT_STATUS: Record<string, string> = {
   disiapkan: 'diambil_driver',
@@ -22,6 +23,10 @@ const DeliveryOrderList: React.FC = () => {
   const [detailOrder, setDetailOrder] = useState<any>(null)
   const [updateModal, setUpdateModal] = useState<string | null>(null)
   const user = useAuthStore(state => state.user)
+
+  // State untuk switch pembayaran COD
+  const [switchPaymentOrder, setSwitchPaymentOrder] = useState<any>(null)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('qris')
 
   const fetchOrders = async () => {
     setLoading(true)
@@ -112,6 +117,12 @@ const DeliveryOrderList: React.FC = () => {
                         <ArrowRight className="w-3 h-3" />
                       </Button>
                     )}
+                    {/* Tombol Ubah Pembayaran COD – hanya muncul jika status 'sampai' dan ada nominal_cod */}
+                    {order.status === 'sampai' && order.nominal_cod && (user?.role === 'super_admin' || user?.role === 'kasir') && (
+                      <Button variant="secondary" onClick={() => setSwitchPaymentOrder(order)}>
+                        <CreditCard className="w-3 h-3" /> BAYAR
+                      </Button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -160,6 +171,49 @@ const DeliveryOrderList: React.FC = () => {
               {NEXT_STATUS[orders.find(o => o.id === updateModal)!.status].replace('_', ' ').toUpperCase()}
             </Button>
           )}
+        </div>
+      </Modal>
+
+      {/* Modal Switch Pembayaran COD */}
+      <Modal
+        open={!!switchPaymentOrder}
+        onClose={() => setSwitchPaymentOrder(null)}
+        title="UBAH PEMBAYARAN COD"
+        onConfirm={async () => {
+          if (!switchPaymentOrder) return
+          try {
+            await posApi.switchPayment(switchPaymentOrder.transaksi_id, selectedPaymentMethod)
+            alert(`Pembayaran berhasil diubah ke ${selectedPaymentMethod.toUpperCase()}`)
+            setSwitchPaymentOrder(null)
+            fetchOrders()
+          } catch (err: any) {
+            alert(err.response?.data?.detail || 'Gagal mengubah pembayaran')
+          }
+        }}
+        confirmText="SIMPAN"
+      >
+        <p className="text-sm mb-3">Pilih metode pembayaran baru untuk order <strong>{switchPaymentOrder?.no_order}</strong></p>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              value="qris"
+              checked={selectedPaymentMethod === 'qris'}
+              onChange={() => setSelectedPaymentMethod('qris')}
+              className="accent-[var(--neon-cyan)]"
+            />
+            QRIS
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              value="transfer"
+              checked={selectedPaymentMethod === 'transfer'}
+              onChange={() => setSelectedPaymentMethod('transfer')}
+              className="accent-[var(--neon-cyan)]"
+            />
+            Transfer
+          </label>
         </div>
       </Modal>
     </Card>

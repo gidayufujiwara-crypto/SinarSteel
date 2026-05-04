@@ -13,6 +13,8 @@ class KaryawanCreate(BaseModel):
     tanggal_masuk: Optional[date] = None
     jabatan: Optional[str] = None
     gaji_pokok: Decimal = Field(0, max_digits=15, decimal_places=2)
+    gaji_per_hari: Optional[Decimal] = None
+    tipe_gaji: str = "bulanan"  # harian, mingguan, bulanan
     bpjs_tk: Optional[Decimal] = None
     bpjs_kes: Optional[Decimal] = None
     no_rek: Optional[str] = None
@@ -27,6 +29,8 @@ class KaryawanUpdate(BaseModel):
     telepon: Optional[str] = None
     tanggal_masuk: Optional[date] = None
     jabatan: Optional[str] = None
+    gaji_per_hari: Optional[Decimal] = None
+    tipe_gaji: str = "bulanan"  # harian, mingguan, bulanan
     gaji_pokok: Optional[Decimal] = None
     bpjs_tk: Optional[Decimal] = None
     bpjs_kes: Optional[Decimal] = None
@@ -43,6 +47,8 @@ class KaryawanResponse(BaseModel):
     tanggal_masuk: Optional[date]
     jabatan: Optional[str]
     gaji_pokok: Decimal
+    gaji_per_hari: Optional[Decimal] = None
+    tipe_gaji: str = "bulanan"  # harian, mingguan, bulanan
     bpjs_tk: Optional[Decimal]
     bpjs_kes: Optional[Decimal]
     no_rek: Optional[str]

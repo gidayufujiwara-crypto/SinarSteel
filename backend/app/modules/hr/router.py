@@ -10,6 +10,9 @@ from app.modules.hr import schemas
 from app.modules.hr.service import HrService
 from app.modules.hr.models import Karyawan, Absensi
 from app.modules.auth.models import User
+from app.modules.auth.schemas import UserResponse, CreateUserRequest
+from app.modules.auth.service import AuthService
+from app.modules.auth.models import User
 
 router = APIRouter()
 
@@ -163,4 +166,45 @@ async def get_my_jadwal(
     karyawan = result.scalar_one_or_none()
     if not karyawan:
         raise HTTPException(status_code=404, detail="Data karyawan tidak ditemukan")
-    return await HrService.get_jadwal_by_karyawan(db, karyawan.id, date.today(), date.today() + timedelta(days=30))
+    return await HrService.get_jadwal_by_karyawan(db, karyawan.id, date.today(),
+                                                  
+                                                  # ---------- User Management ----------
+@router.get("/users", response_model=List[UserResponse])
+async def list_users(
+    current_user: User = Depends(require_role("super_admin")),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(select(User).order_by(User.username))
+    return result.scalars().all()
+
+@router.post("/users", response_model=UserResponse, status_code=201)
+async def create_user(
+    data: schemas.CreateUserRequest,
+    current_user: User = Depends(require_role("super_admin")),
+    db: AsyncSession = Depends(get_db)
+):
+    existing = await db.execute(select(User).where(User.username == data.username))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Username sudah digunakan")
+    user = await AuthService.create_user(
+        db,
+        username=data.username,
+        password=data.password,
+        full_name=data.full_name,
+        role=data.role,
+    )
+    return user
+
+@router.delete("/users/{id}", status_code=204)
+async def delete_user(
+    id: UUID,
+    current_user: User = Depends(require_role("super_admin")),
+    db: AsyncSession = Depends(get_db)
+):
+    if id == current_user.id:
+        raise HTTPException(status_code=400, detail="Tidak dapat menghapus diri sendiri")
+    user = await db.get(User, id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+    await db.delete(user)
+    await db.commit() date.today() + timedelta(days=30))

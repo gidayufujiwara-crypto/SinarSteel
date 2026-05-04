@@ -31,6 +31,7 @@ import CashPage from '../modules/finance/CashPage'
 import LedgerPage from '../modules/finance/LedgerPage'
 import FinanceReportPage from '../modules/finance/ReportPage'
 import TrialBalancePage from '../modules/finance/TrialBalancePage'
+import UserList from '../modules/hr/UserList'
 
 const DashboardPage = lazy(() => import('../modules/dashboard/DashboardPage'))
 const PosPage = lazy(() => import('../modules/pos/PosPage'))
@@ -81,6 +82,7 @@ const AppRouter = () => (
           <Route path="jadwal" element={<JadwalShiftList />} />
           <Route path="absensi" element={<AbsensiList />} />
           <Route path="gaji" element={<GajiList />} />
+          <Route path="users" element={<UserList />} />
         </Route>
         <Route path="/delivery" element={<DeliveryPage />}>
           <Route index element={<DeliveryOrderList />} />

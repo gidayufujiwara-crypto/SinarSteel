@@ -1,12 +1,13 @@
 import React from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
-import { Users, Clock, UserCheck, Banknote } from 'lucide-react'
+import { Users, Clock, UserCheck, Banknote, UserPlus } from 'lucide-react'
 
 const tabs = [
   { to: '/hr/karyawan', label: 'Karyawan', icon: Users },
   { to: '/hr/jadwal', label: 'Jadwal Shift', icon: Clock },
   { to: '/hr/absensi', label: 'Absensi', icon: UserCheck },
   { to: '/hr/gaji', label: 'Penggajian', icon: Banknote },
+  { to: '/hr/users', label: 'User & Akses', icon: UserPlus },
 ]
 
 const HrPage: React.FC = () => {

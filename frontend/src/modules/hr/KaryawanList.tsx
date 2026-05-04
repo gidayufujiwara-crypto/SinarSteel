@@ -14,6 +14,7 @@ const KaryawanList: React.FC = () => {
   const [form, setForm] = useState({
     nik: '', nama: '', alamat: '', telepon: '', tanggal_masuk: '', jabatan: '',
     gaji_pokok: 0, no_rek: '', bank: '', status_aktif: true,
+    gaji_per_hari: 0, tipe_gaji: 'bulanan',
   })
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
@@ -41,7 +42,7 @@ const KaryawanList: React.FC = () => {
     else await hrApi.createKaryawan(form)
     setShowForm(false)
     setEditId(null)
-    setForm({ nik: '', nama: '', alamat: '', telepon: '', tanggal_masuk: '', jabatan: '', gaji_pokok: 0, no_rek: '', bank: '', status_aktif: true })
+    setForm({ nik: '', nama: '', alamat: '', telepon: '', tanggal_masuk: '', jabatan: '', gaji_pokok: 0, no_rek: '', bank: '', status_aktif: true, gaji_per_hari: 0, tipe_gaji: 'bulanan' })
     fetchData()
   }
 
@@ -50,7 +51,10 @@ const KaryawanList: React.FC = () => {
     setForm({
       nik: item.nik, nama: item.nama, alamat: item.alamat || '', telepon: item.telepon || '',
       tanggal_masuk: item.tanggal_masuk || '', jabatan: item.jabatan || '',
-      gaji_pokok: item.gaji_pokok || 0, no_rek: item.no_rek || '', bank: item.bank || '', status_aktif: item.status_aktif !== false,
+      gaji_pokok: item.gaji_pokok || 0, no_rek: item.no_rek || '', bank: item.bank || '',
+      status_aktif: item.status_aktif !== false,
+      gaji_per_hari: item.gaji_per_hari || 0,
+      tipe_gaji: item.tipe_gaji || 'bulanan',
     })
     setShowForm(true)
   }
@@ -66,9 +70,8 @@ const KaryawanList: React.FC = () => {
     <Card title="DAFTAR KARYAWAN" glow="cyan">
       <div className="flex justify-end mb-4">
         <Button onClick={() => {
-          setShowForm(true);
-          setEditId(null);
-          setForm({ nik: '', nama: '', alamat: '', telepon: '', tanggal_masuk: '', jabatan: '', gaji_pokok: 0, no_rek: '', bank: '', status_aktif: true });
+          setShowForm(true); setEditId(null);
+          setForm({ nik: '', nama: '', alamat: '', telepon: '', tanggal_masuk: '', jabatan: '', gaji_pokok: 0, no_rek: '', bank: '', status_aktif: true, gaji_per_hari: 0, tipe_gaji: 'bulanan' });
         }}>
           <Plus className="w-4 h-4 mr-1" /> TAMBAH
         </Button>
@@ -80,19 +83,23 @@ const KaryawanList: React.FC = () => {
             <th>NIK</th>
             <th>Nama</th>
             <th>Jabatan</th>
+            <th>Tipe Gaji</th>
             <th>Gaji Pokok</th>
+            <th>Gaji/Hari</th>
             <th>Aksi</th>
           </tr>
         </thead>
         <tbody>
-          {loading && <tr><td colSpan={5} className="text-center py-4 text-text-dim">MEMUAT...</td></tr>}
-          {!loading && data.length === 0 && <tr><td colSpan={5} className="text-center py-4 text-text-dim">TIDAK ADA DATA</td></tr>}
+          {loading && <tr><td colSpan={7} className="text-center py-4 text-text-dim">MEMUAT...</td></tr>}
+          {!loading && data.length === 0 && <tr><td colSpan={7} className="text-center py-4 text-text-dim">TIDAK ADA DATA</td></tr>}
           {data.map(item => (
             <tr key={item.id}>
               <td className="font-mono">{item.nik}</td>
               <td>{item.nama}</td>
               <td>{item.jabatan || '-'}</td>
+              <td><span className="tag tag-cyan">{item.tipe_gaji || 'bulanan'}</span></td>
               <td>Rp {Number(item.gaji_pokok).toLocaleString()}</td>
+              <td>Rp {Number(item.gaji_per_hari || 0).toLocaleString()}</td>
               <td>
                 <div className="flex gap-2">
                   <button onClick={() => handleEdit(item)} className="text-neon-cyan hover:text-neon-cyan/80"><Edit className="w-4 h-4" /></button>
@@ -118,6 +125,15 @@ const KaryawanList: React.FC = () => {
           <Input label="Telepon" name="telepon" value={form.telepon} onChange={handleChange} />
           <Input label="Jabatan" name="jabatan" value={form.jabatan} onChange={handleChange} />
           <Input label="Gaji Pokok" name="gaji_pokok" type="number" value={form.gaji_pokok} onChange={handleChange} />
+          <Input label="Gaji Per Hari" name="gaji_per_hari" type="number" value={form.gaji_per_hari} onChange={handleChange} />
+          <div>
+            <label className="text-xs font-semibold uppercase text-text-dim">Tipe Gaji</label>
+            <select name="tipe_gaji" value={form.tipe_gaji} onChange={handleChange} className="input-neon w-full mt-1">
+              <option value="harian">Harian</option>
+              <option value="mingguan">Mingguan</option>
+              <option value="bulanan">Bulanan</option>
+            </select>
+          </div>
           <Input label="Tgl Masuk" name="tanggal_masuk" type="date" value={form.tanggal_masuk} onChange={handleChange} />
         </div>
         <Input label="Alamat" name="alamat" value={form.alamat} onChange={handleChange} className="mt-3" />

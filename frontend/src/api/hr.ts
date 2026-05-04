@@ -17,6 +17,9 @@ export const hrApi = {
     apiClient.get(`/hr/absensi/${karyawanID}`, { params: { bulan, tahun } }),
 
   // Gaji
+  getUsers: () => apiClient.get('/hr/users'),
+  createUser: (data: any) => apiClient.post('/hr/users', data),
+  deleteUser: (id: string) => apiClient.delete(`/hr/users/${id}`),
   hitungGaji: (data: any) => apiClient.post('/hr/gaji/hitung', data),
   getGajiList: (bulan?: number, tahun?: number) => apiClient.get('/hr/gaji', { params: { bulan, tahun } }),
 }

@@ -20,6 +20,8 @@ class Karyawan(Base):
     tanggal_masuk: Mapped[date | None] = mapped_column(Date)
     jabatan: Mapped[str | None] = mapped_column(String(100))
     gaji_pokok: Mapped[Decimal] = mapped_column(Numeric(15,2), default=0)
+    gaji_per_hari: Mapped[Optional[Decimal]] = mapped_column(Numeric(15,2), nullable=True)
+    tipe_gaji: Mapped[str] = mapped_column(String(20), default="bulanan")  # harian, mingguan, bulanan
     bpjs_tk: Mapped[Decimal | None] = mapped_column(Numeric(15,2), default=0)
     bpjs_kes: Mapped[Decimal | None] = mapped_column(Numeric(15,2), default=0)
     no_rek: Mapped[str | None] = mapped_column(String(30))

@@ -99,3 +99,42 @@ async def retur_transaksi(
         return await ReturService.retur_transaksi(db, data.model_dump(), current_user)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
+@router.put("/transaksi/{id}/switch-payment", response_model=schemas.TransaksiResponse)
+async def switch_payment(
+    id: UUID,
+    data: schemas.SwitchPaymentRequest,
+    current_user: User = Depends(require_role("super_admin", "kasir")),
+    db: AsyncSession = Depends(get_db)
+):
+    trx = await TransaksiService.get_transaksi_by_id(db, id)
+    if not trx:
+        raise HTTPException(status_code=404, detail="Transaksi tidak ditemukan")
+    if trx.jenis_pembayaran != "cod":
+        raise HTTPException(status_code=400, detail="Hanya transaksi COD yang dapat diubah")
+    # Cek apakah ada delivery order terkait dengan status sampai
+    trx.jenis_pembayaran = data.jenis_pembayaran
+    await db.commit()
+    await db.refresh(trx)
+    return trx
+
+@router.get("/shift/collection", response_model=schemas.ShiftCollectionResponse)
+async def get_shift_collection(
+    current_user: User = Depends(require_role("super_admin", "kasir")),
+    db: AsyncSession = Depends(get_db)
+):
+    shift = await ShiftService.get_shift_aktif(db, current_user.id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Tidak ada shift aktif")
+    return await ShiftService.get_shift_collection(db, shift.id)
+
+@router.post("/shift/pickup", response_model=schemas.PickupResponse)
+async def create_pickup(
+    data: schemas.PickupCreate,
+    current_user: User = Depends(require_role("super_admin", "kasir")),
+    db: AsyncSession = Depends(get_db)
+):
+    shift = await ShiftService.get_shift_aktif(db, current_user.id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="Tidak ada shift aktif")
+    return await ShiftService.create_pickup(db, shift.id, data.model_dump(), current_user.id)

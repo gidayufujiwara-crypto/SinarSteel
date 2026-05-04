@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from app.modules.pos.models import Shift, Transaksi, TransaksiItem, VoidPin
+from app.modules.pos.models import Shift, Transaksi, TransaksiItem, VoidPin, CashPickup
 from app.modules.master.models import Produk, Pelanggan
 from app.modules.auth.models import User
 from app.core.security import verify_password
@@ -63,24 +63,52 @@ class ShiftService:
         shift.status = "tutup"
         shift.catatan = f"Setoran: {total_setoran}, Seharusnya: {seharusnya}, Selisih: {selisih}"
 
-        settlement_lines = [
-            '   SINARSTEEL',
-            '   LAPORAN SETTLEMENT',
-            f'   Tanggal: {date.today().strftime("%d/%m/%Y")}',
-            '=============================',
-            f'Total Transaksi: {total_transaksi}',
-            f'Total Penjualan: Rp {total_penjualan:,.2f}',
-            f'Total Tunai    : Rp {total_tunai:,.2f}',
-            f'Saldo Awal     : Rp {shift.saldo_awal:,.2f}',
-            f'Setoran        : Rp {total_setoran:,.2f}',
-            f'Selisih        : Rp {selisih:,.2f}',
-            '=============================',
-        ]
-        shift.catatan += '\n' + '\n'.join(settlement_lines)
-
         await db.commit()
         await db.refresh(shift)
         return shift
+
+    @staticmethod
+    async def get_shift_collection(db: AsyncSession, shift_id: uuid.UUID) -> dict:
+        result = await db.execute(
+            select(
+                func.coalesce(func.sum(Transaksi.total_setelah_diskon).filter(Transaksi.jenis_pembayaran == 'tunai'), 0).label('tunai'),
+                func.coalesce(func.sum(Transaksi.total_setelah_diskon).filter(Transaksi.jenis_pembayaran == 'qris'), 0).label('qris'),
+                func.coalesce(func.sum(Transaksi.total_setelah_diskon).filter(Transaksi.jenis_pembayaran == 'transfer'), 0).label('transfer'),
+                func.coalesce(func.sum(Transaksi.total_setelah_diskon).filter(Transaksi.jenis_pembayaran == 'cod'), 0).label('cod'),
+            ).where(Transaksi.shift_id == shift_id, Transaksi.status == 'selesai')
+        )
+        row = result.one()
+
+        total_pickup_result = await db.execute(
+            select(func.coalesce(func.sum(CashPickup.jumlah), 0)).where(CashPickup.shift_id == shift_id)
+        )
+        total_pickup = total_pickup_result.scalar() or Decimal(0)
+
+        grand_total = row.tunai + row.qris + row.transfer + row.cod
+        sisa_tunai = row.tunai - total_pickup
+
+        return {
+            "total_tunai": row.tunai,
+            "total_qris": row.qris,
+            "total_transfer": row.transfer,
+            "total_cod": row.cod,
+            "grand_total": grand_total,
+            "total_pickup": total_pickup,
+            "sisa_tunai": sisa_tunai,
+        }
+
+    @staticmethod
+    async def create_pickup(db: AsyncSession, shift_id: uuid.UUID, data: dict, user_id: uuid.UUID) -> CashPickup:
+        pickup = CashPickup(
+            shift_id=shift_id,
+            jumlah=data["jumlah"],
+            keterangan=data.get("keterangan"),
+            created_by=user_id
+        )
+        db.add(pickup)
+        await db.commit()
+        await db.refresh(pickup)
+        return pickup
 
 class TransaksiService:
     @staticmethod
@@ -222,55 +250,6 @@ class TransaksiService:
                 telepon=delivery_data.get("telepon"),
                 nominal_cod=nominal_cod,
             )
-
-                # === Auto-journal ke Finance ===
-        try:
-            from app.modules.finance.service import FinanceService
-            from app.modules.finance.models import ChartOfAccount
-
-            # Cari akun yang diperlukan
-            # Asumsi: akun "Kas" kode 101, "Penjualan" kode 400, "HPP" kode 500, "Persediaan" kode 103
-            # Jika tidak ditemukan, buat jurnal tetap berjalan tanpa error (catch exception)
-            akun_kas = (await db.execute(select(ChartOfAccount).where(ChartOfAccount.kode == "101"))).scalar_one_or_none()
-            akun_penjualan = (await db.execute(select(ChartOfAccount).where(ChartOfAccount.kode == "400"))).scalar_one_or_none()
-            akun_hpp = (await db.execute(select(ChartOfAccount).where(ChartOfAccount.kode == "500"))).scalar_one_or_none()
-            akun_persediaan = (await db.execute(select(ChartOfAccount).where(ChartOfAccount.kode == "103"))).scalar_one_or_none()
-
-            if akun_kas and akun_penjualan and akun_hpp and akun_persediaan:
-                items_jurnal = []
-
-                # Jurnal penjualan: Kas (D) vs Penjualan (K)
-                if jenis in ("tunai", "transfer", "qris"):
-                    items_jurnal.append({"account_id": akun_kas.id, "debit": total_setelah, "kredit": 0, "deskripsi": f"Penjualan {no_trx}"})
-                elif jenis == "cod":
-                    # COD: Piutang COD (anggap kas nanti saat diterima)
-                    akun_piutang_cod = (await db.execute(select(ChartOfAccount).where(ChartOfAccount.kode == "102"))).scalar_one_or_none() or akun_kas
-                    items_jurnal.append({"account_id": akun_piutang_cod.id, "debit": total_setelah, "kredit": 0, "deskripsi": f"COD {no_trx}"})
-                items_jurnal.append({"account_id": akun_penjualan.id, "debit": 0, "kredit": total_setelah, "deskripsi": f"Pendapatan {no_trx}"})
-
-                # Jurnal HPP: HPP (D) vs Persediaan (K)
-                total_hpp = Decimal(0)
-                for item in item_list:
-                    produk = await db.get(Produk, item["produk_id"])
-                    if produk:
-                        total_hpp += produk.hpp_rata_rata * item["qty"]
-                if total_hpp > 0:
-                    items_jurnal.append({"account_id": akun_hpp.id, "debit": total_hpp, "kredit": 0, "deskripsi": f"HPP {no_trx}"})
-                    items_jurnal.append({"account_id": akun_persediaan.id, "debit": 0, "kredit": total_hpp, "deskripsi": f"Pengurangan persediaan {no_trx}"})
-
-                await FinanceService.create_journal(
-                    db,
-                    {
-                        "tanggal": date.today(),
-                        "keterangan": f"Auto-jurnal dari transaksi {no_trx}",
-                        "tipe": "penjualan",
-                        "referensi": str(transaksi.id),
-                        "items": items_jurnal,
-                    },
-                    kasir
-                )
-        except Exception as e:
-            print(f"Gagal membuat auto-jurnal: {e}")
 
         return transaksi
 

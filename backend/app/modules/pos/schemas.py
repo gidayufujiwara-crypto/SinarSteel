@@ -96,3 +96,27 @@ class ReturRequest(BaseModel):
 
     class Config:
         extra = "ignore"
+
+class SwitchPaymentRequest(BaseModel):
+    jenis_pembayaran: str = Field(..., pattern="^(qris|transfer)$")
+
+class PickupCreate(BaseModel):
+    jumlah: Decimal = Field(..., gt=0)
+    keterangan: Optional[str] = None
+
+class PickupResponse(BaseModel):
+    id: UUID
+    shift_id: UUID
+    jumlah: Decimal
+    keterangan: Optional[str] = None
+    created_at: datetime
+    class Config: from_attributes = True
+
+class ShiftCollectionResponse(BaseModel):
+    total_tunai: Decimal = 0
+    total_qris: Decimal = 0
+    total_transfer: Decimal = 0
+    total_cod: Decimal = 0
+    grand_total: Decimal = 0
+    total_pickup: Decimal = 0
+    sisa_tunai: Decimal = 0

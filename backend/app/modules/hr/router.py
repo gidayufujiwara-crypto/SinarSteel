@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List, Optional
@@ -12,14 +12,13 @@ from app.modules.hr.models import Karyawan, Absensi
 from app.modules.auth.models import User
 from app.modules.auth.schemas import UserResponse, CreateUserRequest
 from app.modules.auth.service import AuthService
-from app.modules.auth.models import User
 
 router = APIRouter()
 
 # ---------- KARYAWAN ----------
 @router.get("/karyawan", response_model=List[schemas.KaryawanResponse])
 async def list_karyawan(
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin")),
     db: AsyncSession = Depends(get_db)
 ):
     return await HrService.get_karyawan_list(db)
@@ -27,7 +26,7 @@ async def list_karyawan(
 @router.post("/karyawan", response_model=schemas.KaryawanResponse, status_code=201)
 async def create_karyawan(
     data: schemas.KaryawanCreate,
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin")),
     db: AsyncSession = Depends(get_db)
 ):
     return await HrService.create_karyawan(db, data.model_dump())
@@ -36,7 +35,7 @@ async def create_karyawan(
 async def update_karyawan(
     id: UUID,
     data: schemas.KaryawanUpdate,
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin")),
     db: AsyncSession = Depends(get_db)
 ):
     obj = await HrService.get_karyawan_by_id(db, id)
@@ -47,7 +46,7 @@ async def update_karyawan(
 @router.delete("/karyawan/{id}", status_code=204)
 async def delete_karyawan(
     id: UUID,
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin")),
     db: AsyncSession = Depends(get_db)
 ):
     success = await HrService.delete_karyawan(db, id)
@@ -60,7 +59,7 @@ async def get_jadwal(
     karyawan_id: UUID,
     start_date: date = Query(...),
     end_date: date = Query(...),
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin", "karyawan")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin", "karyawan")),
     db: AsyncSession = Depends(get_db)
 ):
     return await HrService.get_jadwal_by_karyawan(db, karyawan_id, start_date, end_date)
@@ -68,7 +67,7 @@ async def get_jadwal(
 @router.post("/jadwal", response_model=schemas.JadwalShiftResponse, status_code=201)
 async def create_jadwal(
     data: schemas.JadwalShiftCreate,
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin")),
     db: AsyncSession = Depends(get_db)
 ):
     return await HrService.create_jadwal(db, data.model_dump())
@@ -79,7 +78,7 @@ async def list_absensi(
     karyawan_id: UUID,
     bulan: Optional[int] = Query(None),
     tahun: Optional[int] = Query(None),
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin", "karyawan")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin", "karyawan")),
     db: AsyncSession = Depends(get_db)
 ):
     return await HrService.get_absensi_by_karyawan(db, karyawan_id, bulan, tahun)
@@ -88,7 +87,7 @@ async def list_absensi(
 async def create_absensi(
     karyawan_id: UUID,
     data: schemas.AbsensiCreate,
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin", "karyawan")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin", "karyawan")),
     db: AsyncSession = Depends(get_db)
 ):
     return await HrService.create_absensi(db, {**data.model_dump(), "karyawan_id": karyawan_id})
@@ -98,10 +97,9 @@ async def update_absensi_pulang(
     karyawan_id: UUID,
     tanggal: date,
     data: schemas.AbsensiUpdate,
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin", "karyawan")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin", "karyawan")),
     db: AsyncSession = Depends(get_db)
 ):
-    # Cari absensi berdasarkan karyawan_id dan tanggal
     result = await db.execute(
         select(Absensi).where(
             Absensi.karyawan_id == karyawan_id,
@@ -112,7 +110,6 @@ async def update_absensi_pulang(
     if not absensi:
         raise HTTPException(status_code=404, detail="Absensi tidak ditemukan")
 
-    # Update data pulang
     update_data = data.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(absensi, key, value)
@@ -125,7 +122,7 @@ async def update_absensi_pulang(
 @router.post("/gaji/hitung", response_model=schemas.GajiResponse)
 async def hitung_gaji(
     data: schemas.HitungGajiRequest,
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin")),
     db: AsyncSession = Depends(get_db)
 ):
     try:
@@ -137,7 +134,7 @@ async def hitung_gaji(
 async def list_gaji(
     bulan: Optional[int] = Query(None),
     tahun: Optional[int] = Query(None),
-    current_user: User = Depends(require_role("super_admin", "manager", "hr_admin", "karyawan")),
+    current_user: User = Depends(require_role("super_admin", "hr_admin", "karyawan")),
     db: AsyncSession = Depends(get_db)
 ):
     return await HrService.get_gaji_list(db, bulan, tahun)
@@ -166,9 +163,9 @@ async def get_my_jadwal(
     karyawan = result.scalar_one_or_none()
     if not karyawan:
         raise HTTPException(status_code=404, detail="Data karyawan tidak ditemukan")
-    return await HrService.get_jadwal_by_karyawan(db, karyawan.id, date.today(),
-                                                  
-                                                  # ---------- User Management ----------
+    return await HrService.get_jadwal_by_karyawan(db, karyawan.id, date.today(), date.today() + timedelta(days=30))
+
+# ---------- User Management ----------
 @router.get("/users", response_model=List[UserResponse])
 async def list_users(
     current_user: User = Depends(require_role("super_admin")),
@@ -179,7 +176,7 @@ async def list_users(
 
 @router.post("/users", response_model=UserResponse, status_code=201)
 async def create_user(
-    data: schemas.CreateUserRequest,
+    data: CreateUserRequest,
     current_user: User = Depends(require_role("super_admin")),
     db: AsyncSession = Depends(get_db)
 ):
@@ -207,4 +204,4 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="User tidak ditemukan")
     await db.delete(user)
-    await db.commit() date.today() + timedelta(days=30))
+    await db.commit()

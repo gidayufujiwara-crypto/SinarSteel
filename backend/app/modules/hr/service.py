@@ -1,6 +1,5 @@
 import uuid
 from datetime import date, datetime, timedelta
-from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -100,42 +99,42 @@ class HrService:
                 if selisih > 8:  # lebih dari 8 jam normal
                     total_jam_lembur += selisih - 8
 
-    # Hitung gaji berdasarkan tipe
-    gaji_pokok = 0
-    if karyawan.tipe_gaji == "bulanan":
-        gaji_pokok = karyawan.gaji_pokok
-    elif karyawan.tipe_gaji == "harian":
-        hari_masuk = len([a for a in absensi_list if a.status_hadir in ("hadir", "terlambat")])
-        gaji_pokok = (karyawan.gaji_per_hari or 0) * hari_masuk
-    elif karyawan.tipe_gaji == "mingguan":
-        # Hitung jumlah minggu dalam bulan
-        import calendar
-        _, num_days = calendar.monthrange(tahun, bulan)
-        minggu = (num_days + date(tahun, bulan, 1).weekday()) // 7 + 1
-        gaji_pokok = (karyawan.gaji_per_hari or 0) * 7 * minggu
+        # Hitung gaji berdasarkan tipe
+        gaji_pokok = 0
+        if karyawan.tipe_gaji == "bulanan":
+            gaji_pokok = karyawan.gaji_pokok
+        elif karyawan.tipe_gaji == "harian":
+            hari_masuk = len([a for a in absensi_list if a.status_hadir in ("hadir", "terlambat")])
+            gaji_pokok = (karyawan.gaji_per_hari or 0) * hari_masuk
+        elif karyawan.tipe_gaji == "mingguan":
+            # Hitung jumlah minggu dalam bulan
+            import calendar
+            _, num_days = calendar.monthrange(tahun, bulan)
+            minggu = (num_days + date(tahun, bulan, 1).weekday()) // 7 + 1
+            gaji_pokok = (karyawan.gaji_per_hari or 0) * 7 * minggu
 
-    tarif_lembur = (gaji_pokok / 173) * 1.5  # asumsi tarif lembur 1.5x per jam
-    total_lembur = Decimal(total_jam_lembur) * tarif_lembur
-    total_gaji = gaji_pokok + total_lembur
+        tarif_lembur = (gaji_pokok / Decimal(173)) * Decimal(1.5)  # asumsi tarif lembur 1.5x per jam
+        total_lembur = Decimal(total_jam_lembur) * tarif_lembur
+        total_gaji = gaji_pokok + total_lembur
 
-    gaji = Gaji(
-        karyawan_id=karyawan_id,
-        periode_bulan=bulan,
-        periode_tahun=tahun,
-        gaji_pokok=gaji_pokok,
-        tunjangan=Decimal(0),
-        lembur_jam=int(total_jam_lembur),
-        tarif_lembur=tarif_lembur,
-        total_lembur=total_lembur,
-        potongan=Decimal(0),
-        bpjs_tk=Decimal(0),
-        bpjs_kes=Decimal(0),
-        total_gaji=total_gaji,
-    )
-    db.add(gaji)
-    await db.commit()
-    await db.refresh(gaji)
-    return gaji
+        gaji = Gaji(
+            karyawan_id=karyawan_id,
+            periode_bulan=bulan,
+            periode_tahun=tahun,
+            gaji_pokok=gaji_pokok,
+            tunjangan=Decimal(0),
+            lembur_jam=int(total_jam_lembur),
+            tarif_lembur=tarif_lembur,
+            total_lembur=total_lembur,
+            potongan=Decimal(0),
+            bpjs_tk=Decimal(0),
+            bpjs_kes=Decimal(0),
+            total_gaji=total_gaji,
+        )
+        db.add(gaji)
+        await db.commit()
+        await db.refresh(gaji)
+        return gaji
 
     @staticmethod
     async def get_gaji_list(db: AsyncSession, bulan: Optional[int] = None, tahun: Optional[int] = None) -> List[Gaji]:

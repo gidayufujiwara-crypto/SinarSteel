@@ -7,7 +7,7 @@ import Modal from '../../components/ui/Modal'
 import { Plus, Trash2, Printer, Database } from 'lucide-react'
 import apiClient from '../../api/client'
 import { settingsApi } from '../../api/pos'
-import BackupRestorePage from './backupRestorePage'
+import BackupRestorePage from './BackupRestorePage'
 
 const SettingsPage: React.FC = () => {
   const user = useAuthStore((state) => state.user)
@@ -31,6 +31,10 @@ const SettingsPage: React.FC = () => {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoUrl, setLogoUrl] = useState(localStorage.getItem('logoUrl') || '')
 
+  // Telegram config
+  const [telegramToken, setTelegramToken] = useState('')
+  const [telegramChatId, setTelegramChatId] = useState('')
+
   const fetchSettings = async () => {
     try {
       const res = await settingsApi.getAll()
@@ -40,6 +44,8 @@ const SettingsPage: React.FC = () => {
       setRekening(map.account_number || '')
       setAtasNama(map.account_holder || '')
       setQrisUrl(map.qris_image_url || '')
+      setTelegramToken(map.bot_token || '')
+      setTelegramChatId(map.chat_id || '')
     } catch {}
   }
 
@@ -208,6 +214,34 @@ const SettingsPage: React.FC = () => {
                   <Input label="URL Gambar QRIS" value={qrisUrl} onChange={e => setQrisUrl(e.target.value)} />
                   {qrisUrl && <img src={qrisUrl} alt="QRIS" className="w-24 h-24 object-contain border border-[rgba(0,245,255,0.2)] rounded-lg" />}
                   <Button variant="primary" onClick={savePaymentSettings}>SIMPAN</Button>
+                </div>
+              </Card>
+
+              {/* Pengaturan Notifikasi Telegram */}
+              <Card title="PENGATURAN NOTIFIKASI TELEGRAM" glow="cyan" className="mt-6">
+                <div className="space-y-4 max-w-md">
+                  <Input
+                    label="Bot Token"
+                    value={telegramToken}
+                    onChange={e => {
+                      setTelegramToken(e.target.value)
+                      saveSetting('bot_token', e.target.value)
+                    }}
+                    placeholder="Masukkan token dari @BotFather"
+                  />
+                  <Input
+                    label="Chat ID"
+                    value={telegramChatId}
+                    onChange={e => {
+                      setTelegramChatId(e.target.value)
+                      saveSetting('chat_id', e.target.value)
+                    }}
+                    placeholder="Masukkan Chat ID Telegram Anda"
+                  />
+                  <p className="text-text-dim text-xs">
+                    Panduan: Buka Telegram, cari @BotFather, buat bot baru. Dapatkan token.
+                    Lalu cari bot Anda, kirim pesan, dan akses <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> untuk mendapatkan Chat ID.
+                  </p>
                 </div>
               </Card>
             </>

@@ -12,11 +12,31 @@ from app.modules.report import router as report_router
 from app.modules.settings.router import router as settings_router
 from app.modules.settings.upload_router import router as upload_router
 from app.modules.system.router import router as system_router
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from contextlib import asynccontextmanager
+
+scheduler = AsyncIOScheduler()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Jalankan scheduler setiap 1 jam
+    from app.modules.wms.telegram_service import send_telegram_notification
+    from app.core.database import AsyncSessionLocal
+
+    async def check_stock():
+        async with AsyncSessionLocal() as db:
+            await send_telegram_notification(db)
+
+    scheduler.add_job(check_stock, 'interval', hours=1)
+    scheduler.start()
+    yield
+    scheduler.shutdown()
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="SinarSteel - Sistem Manajemen Toko Besi",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

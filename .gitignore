@@ -39,3 +39,5 @@ backend/uploads/
 # IDE
 .vscode/
 .idea/
+
+backend/firebase-service-account.json

@@ -1,8 +1,11 @@
 import httpx
+import json
+import firebase_admin
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.modules.master.models import Produk
 from app.modules.settings.models import Setting
+from firebase_admin import credentials, messaging
 
 async def send_telegram_notification(db: AsyncSession):
     # Ambil token dan chat_id dari settings
@@ -46,3 +49,30 @@ async def send_telegram_notification(db: AsyncSession):
             print("Telegram notification sent")
         except Exception as e:
             print(f"Failed to send Telegram notification: {e}")
+
+
+async def send_fcm_notification(db: AsyncSession, title: str, body: str):
+    from app.modules.push.models import FcmToken
+
+    # Ambil semua token FCM
+    result = await db.execute(select(FcmToken))
+    tokens = result.scalars().all()
+
+    if not tokens:
+        return
+
+    # Buat pesan
+    message = messaging.MulticastMessage(
+        notification=messaging.Notification(
+            title=title,
+            body=body,
+        ),
+        tokens=[t.token for t in tokens],
+    )
+
+    # Kirim
+    try:
+        response = messaging.send_multicast(message)
+        print(f"FCM berhasil dikirim ke {response.success_count} perangkat")
+    except Exception as e:
+        print(f"Gagal mengirim FCM: {e}")

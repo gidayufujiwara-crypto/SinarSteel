@@ -1,3 +1,4 @@
+import firebase_admin
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
@@ -14,6 +15,11 @@ from app.modules.settings.upload_router import router as upload_router
 from app.modules.system.router import router as system_router
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from contextlib import asynccontextmanager
+from app.modules.push.router import router as push_router
+from app.modules.wms.telegram_service import send_fcm_notification
+from app.modules.master.models import Produk
+from sqlalchemy import select
+from firebase_admin import credentials
 
 scheduler = AsyncIOScheduler()
 
@@ -26,11 +32,20 @@ async def lifespan(app: FastAPI):
     async def check_stock():
         async with AsyncSessionLocal() as db:
             await send_telegram_notification(db)
+            # Hanya kirim FCM saat stok kritis
+        produk_kritis = await db.execute(
+            select(Produk).where(Produk.is_active == True, Produk.stok <= Produk.stok_minimum)
+        )
+        if produk_kritis.scalars().first():
+            await send_fcm_notification(db, "Stok Kritis", "Ada produk yang perlu direstock. Cek aplikasi.")
 
     scheduler.add_job(check_stock, 'interval', hours=1)
     scheduler.start()
     yield
     scheduler.shutdown()
+
+cred = credentials.Certificate("firebase-service-account.json")
+firebase_admin.initialize_app(cred)   # HANYA SATU KALI DI SINI
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -57,6 +72,7 @@ app.include_router(report_router, prefix="/report", tags=["Reports"])
 app.include_router(settings_router)
 app.include_router(upload_router, prefix="/settings")
 app.include_router(system_router)
+app.include_router(push_router)
 
 @app.get("/")
 async def root():

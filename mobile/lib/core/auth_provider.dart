@@ -28,6 +28,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   AuthNotifier(this.api) : super(AuthState());
 
+  void setUser(
+      {required String token,
+      required String userId,
+      required String role,
+      required String fullName}) {
+    state = AuthState(
+      isAuthenticated: true,
+      token: token,
+      userId: userId,
+      role: role,
+      fullName: fullName,
+    );
+  }
+
   Future<void> login(String username, String password) async {
     final response = await api.dio.post('/auth/login',
         data: {'username': username, 'password': password});

@@ -13,6 +13,7 @@ venv.bak/
 *.log
 .pytest_cache/
 .mypy_cache/
+*.egg-info/
 
 # Alembic
 alembic/versions/*.pyc
@@ -32,6 +33,11 @@ mobile/build/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
 mobile/.idea/
+desktop/build/
+desktop/.dart_tool/
+desktop/.flutter-plugins
+desktop/.flutter-plugins-dependencies
+desktop/.packages
 
 # Uploads
 backend/uploads/
@@ -39,5 +45,19 @@ backend/uploads/
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
 backend/firebase-service-account.json
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Env
+.env
+*.env
+
+# Database
+*.db
+*.sqlite3

@@ -8,56 +8,68 @@ class SalaryTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hrState = ref.watch(hrProvider);
-    final slips = hrState.filteredSalarySlips;
-
+    final state = ref.watch(hrProvider);
     return Column(
       children: [
-        // Filter
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: AppColors.bgPanel,
+        Padding(
+          padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              const Text('Periode:',
-                  style: TextStyle(color: AppColors.textDim, fontSize: 12)),
-              const SizedBox(width: 8),
               SizedBox(
-                width: 150,
+                width: 80,
                 child: TextField(
                   style: const TextStyle(
                       color: AppColors.textPrimary, fontSize: 12),
-                  decoration: InputDecoration(
-                    hintText: 'YYYY-MM',
+                  decoration: const InputDecoration(
+                    hintText: 'Bulan',
                     hintStyle:
-                        const TextStyle(color: AppColors.textDim, fontSize: 12),
+                        TextStyle(color: AppColors.textDim, fontSize: 12),
                     isDense: true,
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    fillColor: AppColors.bgDark,
+                        EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     filled: true,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4),
-                        borderSide:
-                            const BorderSide(color: AppColors.borderNeon)),
+                    fillColor: AppColors.bgDark,
+                    border: OutlineInputBorder(),
                   ),
                   onChanged: (v) =>
-                      ref.read(hrProvider.notifier).setSalaryFilter(v.trim()),
+                      ref.read(hrProvider.notifier).setSalaryFilterBulan(v),
                 ),
               ),
               const SizedBox(width: 8),
-              if (hrState.salaryFilterMonth.isNotEmpty)
-                TextButton(
-                  onPressed: () =>
-                      ref.read(hrProvider.notifier).setSalaryFilter(''),
-                  child: const Text('Semua',
-                      style:
-                          TextStyle(color: AppColors.neonCyan, fontSize: 11)),
+              SizedBox(
+                width: 80,
+                child: TextField(
+                  style: const TextStyle(
+                      color: AppColors.textPrimary, fontSize: 12),
+                  decoration: const InputDecoration(
+                    hintText: 'Tahun',
+                    hintStyle:
+                        TextStyle(color: AppColors.textDim, fontSize: 12),
+                    isDense: true,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    filled: true,
+                    fillColor: AppColors.bgDark,
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (v) =>
+                      ref.read(hrProvider.notifier).setSalaryFilterTahun(v),
                 ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () => ref.read(hrProvider.notifier).fetchSalary(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.neonPink,
+                  foregroundColor: AppColors.bgDark,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                child: const Text('Lihat', style: TextStyle(fontSize: 11)),
+              ),
             ],
           ),
         ),
-        // Header
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           color: AppColors.bgCard,
@@ -101,16 +113,15 @@ class SalaryTab extends ConsumerWidget {
             ],
           ),
         ),
-        // List
         Expanded(
           child: ListView.builder(
-            itemCount: slips.length,
+            itemCount: state.salarySlips.length,
             itemBuilder: (ctx, i) {
-              final s = slips[i];
+              final s = state.salarySlips[i];
               final delta = s.bonus - s.deduction;
               return Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                     border: Border(
                         bottom: BorderSide(
@@ -129,26 +140,23 @@ class SalaryTab extends ConsumerWidget {
                                 color: AppColors.textDim, fontSize: 11))),
                     Expanded(
                         flex: 2,
-                        child: Text('Rp ${_formatPrice(s.baseSalary)}',
+                        child: Text('Rp ${_fmt(s.baseSalary)}',
                             style: const TextStyle(
                                 color: AppColors.textPrimary, fontSize: 11))),
                     Expanded(
                       flex: 2,
                       child: Text(
-                        delta >= 0
-                            ? '+${_formatPrice(delta.toDouble())}'
-                            : '-${_formatPrice((-delta).toDouble())}',
+                        delta >= 0 ? '+${_fmt(delta)}' : '-${_fmt(-delta)}',
                         style: TextStyle(
                             color: delta >= 0
                                 ? AppColors.neonGreen
                                 : AppColors.neonPink,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600),
+                            fontSize: 11),
                       ),
                     ),
                     Expanded(
                         flex: 2,
-                        child: Text('Rp ${_formatPrice(s.total)}',
+                        child: Text('Rp ${_fmt(s.total)}',
                             style: const TextStyle(
                                 color: AppColors.neonGreen,
                                 fontSize: 12,
@@ -163,9 +171,7 @@ class SalaryTab extends ConsumerWidget {
     );
   }
 
-  String _formatPrice(double price) {
-    return price
-        .toStringAsFixed(0)
-        .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
-  }
+  String _fmt(double v) => v
+      .toStringAsFixed(0)
+      .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
 }

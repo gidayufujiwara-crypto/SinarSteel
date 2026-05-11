@@ -12,106 +12,83 @@ class ActiveOrdersTab extends ConsumerStatefulWidget {
 }
 
 class _ActiveOrdersTabState extends ConsumerState<ActiveOrdersTab> {
-  void _showAssignDialog(DeliveryOrder order) {
-    final drivers = ref.read(deliveryProvider).drivers;
-    String? selectedDriver = order.driverId;
-    String? selectedCoDriver = order.coDriverId;
+  final _driverIdCtrl = TextEditingController();
 
+  @override
+  void dispose() {
+    _driverIdCtrl.dispose();
+    super.dispose();
+  }
+
+  void _showAssignDialog(DeliveryOrder order) {
+    _driverIdCtrl.clear();
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.bgCard,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: AppColors.borderNeon),
-          ),
-          title: const Text('Assign Driver',
-              style: TextStyle(color: AppColors.neonBlue)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Order: ${order.orderNumber}',
-                  style:
-                      const TextStyle(color: AppColors.textDim, fontSize: 12)),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: selectedDriver,
-                items: [
-                  const DropdownMenuItem(
-                      value: null,
-                      child: Text('Pilih Supir',
-                          style: TextStyle(color: AppColors.textDim))),
-                  ...drivers
-                      .where((d) => d.role == 'supir')
-                      .map((d) => DropdownMenuItem(
-                            value: d.id,
-                            child: Text(d.name,
-                                style: const TextStyle(
-                                    color: AppColors.textPrimary)),
-                          )),
-                ],
-                onChanged: (v) => setDialogState(() => selectedDriver = v),
-                decoration: _inputDecoration('Supir'),
-                dropdownColor: AppColors.bgCard,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.bgCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: AppColors.borderNeon),
+        ),
+        title: const Text('Assign Driver',
+            style: TextStyle(color: AppColors.neonBlue)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Order: ${order.orderNumber}',
+                style: const TextStyle(color: AppColors.textDim, fontSize: 12)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _driverIdCtrl,
+              style: const TextStyle(color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                labelText: 'Driver ID',
+                labelStyle:
+                    const TextStyle(color: AppColors.textDim, fontSize: 11),
+                filled: true,
+                fillColor: AppColors.bgDark,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: const BorderSide(color: AppColors.borderNeon)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: const BorderSide(color: AppColors.neonBlue)),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: selectedCoDriver,
-                items: [
-                  const DropdownMenuItem(
-                      value: null,
-                      child: Text('Pilih Kernet (opsional)',
-                          style: TextStyle(color: AppColors.textDim))),
-                  ...drivers
-                      .where((d) => d.role == 'kernet')
-                      .map((d) => DropdownMenuItem(
-                            value: d.id,
-                            child: Text(d.name,
-                                style: const TextStyle(
-                                    color: AppColors.textPrimary)),
-                          )),
-                ],
-                onChanged: (v) => setDialogState(() => selectedCoDriver = v),
-                decoration: _inputDecoration('Kernet'),
-                dropdownColor: AppColors.bgCard,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Batal',
-                  style: TextStyle(color: AppColors.textDim)),
-            ),
-            ElevatedButton(
-              onPressed: selectedDriver == null
-                  ? null
-                  : () async {
-                      Navigator.pop(ctx);
-                      final error = await ref
-                          .read(deliveryProvider.notifier)
-                          .assignDriver(
-                            order.id,
-                            selectedDriver!,
-                            selectedCoDriver,
-                          );
-                      if (error != null && mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(error),
-                              backgroundColor: AppColors.neonOrange),
-                        );
-                      }
-                    },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.neonBlue,
-                foregroundColor: AppColors.bgDark,
-              ),
-              child: const Text('Simpan'),
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child:
+                const Text('Batal', style: TextStyle(color: AppColors.textDim)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final driverId = _driverIdCtrl.text.trim();
+              if (driverId.isEmpty) return;
+              Navigator.pop(ctx);
+              final error = await ref
+                  .read(deliveryProvider.notifier)
+                  .assignDriver(order.id, driverId);
+              if (error != null && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(error),
+                      backgroundColor: AppColors.neonOrange),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.neonBlue,
+              foregroundColor: AppColors.bgDark,
+            ),
+            child: const Text('Simpan'),
+          ),
+        ],
       ),
     );
   }
@@ -251,134 +228,122 @@ class _ActiveOrdersTabState extends ConsumerState<ActiveOrdersTab> {
                           color: AppColors.textDim,
                           fontSize: 11,
                           fontWeight: FontWeight.w600))),
-              SizedBox(width: 100),
+              SizedBox(width: 80),
             ],
           ),
         ),
         // List
         Expanded(
-          child: ListView.builder(
-            itemCount: orders.length,
-            itemBuilder: (ctx, i) {
-              final o = orders[i];
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                    border: Border(
-                        bottom: BorderSide(
-                            color: AppColors.borderNeon.withOpacity(0.3)))),
-                child: Row(
-                  children: [
-                    Expanded(
-                        flex: 2,
-                        child: Text(o.orderNumber,
-                            style: const TextStyle(
-                                color: AppColors.neonCyan, fontSize: 12))),
-                    Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(o.customerName,
-                                style: const TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 12)),
-                            Text(o.address,
-                                style: const TextStyle(
-                                    color: AppColors.textDim, fontSize: 10),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
-                          ],
-                        )),
-                    Expanded(
-                        flex: 2,
-                        child: Text(o.driverName ?? '-',
-                            style: TextStyle(
-                                color: o.driverName != null
-                                    ? AppColors.textPrimary
-                                    : AppColors.textDim,
-                                fontSize: 11))),
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: (o.status == 'pending'
-                                  ? AppColors.neonOrange
-                                  : o.status == 'dikirim'
-                                      ? AppColors.neonBlue
-                                      : AppColors.neonGreen)
-                              .withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(o.statusLabel,
-                            style: TextStyle(
-                              color: o.status == 'pending'
-                                  ? AppColors.neonOrange
-                                  : o.status == 'dikirim'
-                                      ? AppColors.neonBlue
-                                      : AppColors.neonGreen,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            )),
+          child: deliveryState.isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.neonBlue))
+              : ListView.builder(
+                  itemCount: orders.length,
+                  itemBuilder: (ctx, i) {
+                    final o = orders[i];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                          border: Border(
+                              bottom: BorderSide(
+                                  color:
+                                      AppColors.borderNeon.withOpacity(0.3)))),
+                      child: Row(
+                        children: [
+                          Expanded(
+                              flex: 2,
+                              child: Text(o.orderNumber,
+                                  style: const TextStyle(
+                                      color: AppColors.neonCyan,
+                                      fontSize: 12))),
+                          Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(o.customerName,
+                                      style: const TextStyle(
+                                          color: AppColors.textPrimary,
+                                          fontSize: 12)),
+                                  Text(o.address,
+                                      style: const TextStyle(
+                                          color: AppColors.textDim,
+                                          fontSize: 10),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis),
+                                ],
+                              )),
+                          Expanded(
+                              flex: 2,
+                              child: Text(o.driverName ?? '-',
+                                  style: TextStyle(
+                                      color: o.driverName != null
+                                          ? AppColors.textPrimary
+                                          : AppColors.textDim,
+                                      fontSize: 11))),
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: (o.status == 'pending'
+                                        ? AppColors.neonOrange
+                                        : o.status == 'dikirim'
+                                            ? AppColors.neonBlue
+                                            : AppColors.neonGreen)
+                                    .withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(o.statusLabel,
+                                  style: TextStyle(
+                                    color: o.status == 'pending'
+                                        ? AppColors.neonOrange
+                                        : o.status == 'dikirim'
+                                            ? AppColors.neonBlue
+                                            : AppColors.neonGreen,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                  )),
+                            ),
+                          ),
+                          Expanded(
+                              flex: 2,
+                              child: Text('Rp ${_formatPrice(o.totalAmount)}',
+                                  style: const TextStyle(
+                                      color: AppColors.neonGreen,
+                                      fontSize: 11))),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.person_add, size: 16),
+                                color: AppColors.neonCyan,
+                                tooltip: 'Assign Driver',
+                                onPressed: () => _showAssignDialog(o),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit_note, size: 16),
+                                color: AppColors.neonYellow,
+                                tooltip: 'Update Status',
+                                onPressed: () => _showStatusDialog(o),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ),
-                    Expanded(
-                        flex: 2,
-                        child: Text('Rp ${_formatPrice(o.totalAmount)}',
-                            style: const TextStyle(
-                                color: AppColors.neonGreen, fontSize: 11))),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.person_add, size: 16),
-                          color: AppColors.neonCyan,
-                          tooltip: 'Assign Driver',
-                          onPressed: () => _showAssignDialog(o),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit_note, size: 16),
-                          color: AppColors.neonYellow,
-                          tooltip: 'Update Status',
-                          onPressed: () => _showStatusDialog(o),
-                        ),
-                      ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
-        if (deliveryState.isLoading)
-          const LinearProgressIndicator(color: AppColors.neonBlue),
       ],
     );
   }
 
   String _formatPrice(double price) {
-    return price.toStringAsFixed(0).replaceAllMapped(
-          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-          (m) => '${m[1]}.',
-        );
+    return price
+        .toStringAsFixed(0)
+        .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
   }
-
-  InputDecoration _inputDecoration(String label) => InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: AppColors.textDim, fontSize: 11),
-        filled: true,
-        fillColor: AppColors.bgDark,
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: AppColors.borderNeon)),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(6),
-            borderSide: const BorderSide(color: AppColors.neonBlue)),
-      );
 }

@@ -15,67 +15,128 @@ class ApiService {
         }
         handler.next(options);
       },
-      onError: (error, handler) {
-        handler.next(error);
-      },
+      onError: (error, handler) => handler.next(error),
     ));
   }
 
   // Auth
-  Future<Response> login(String username, String password) {
-    return dio.post('/auth/login', data: {
-      'username': username,
-      'password': password,
-    });
+  Future<Response> login(String username, String password) => dio
+      .post('/auth/login', data: {'username': username, 'password': password});
+  Future<Response> getMe() => dio.get('/auth/me');
+
+  // Master — Produk
+  Future<Response> getProducts() => dio.get('/master/produk');
+  Future<Response> createProduct(Map<String, dynamic> d) =>
+      dio.post('/master/produk', data: d);
+  Future<Response> updateProduct(String id, Map<String, dynamic> d) =>
+      dio.put('/master/produk/$id', data: d);
+  Future<Response> deleteProduct(String id) => dio.delete('/master/produk/$id');
+
+  // Master — Kategori
+  Future<Response> getCategories() => dio.get('/master/kategori');
+  Future<Response> createCategory(Map<String, dynamic> d) =>
+      dio.post('/master/kategori', data: d);
+  Future<Response> updateCategory(String id, Map<String, dynamic> d) =>
+      dio.put('/master/kategori/$id', data: d);
+  Future<Response> deleteCategory(String id) =>
+      dio.delete('/master/kategori/$id');
+
+  // Master — Satuan
+  Future<Response> getUnits() => dio.get('/master/satuan');
+  Future<Response> createUnit(Map<String, dynamic> d) =>
+      dio.post('/master/satuan', data: d);
+  Future<Response> updateUnit(String id, Map<String, dynamic> d) =>
+      dio.put('/master/satuan/$id', data: d);
+  Future<Response> deleteUnit(String id) => dio.delete('/master/satuan/$id');
+
+  // Master — Supplier
+  Future<Response> getSuppliers() => dio.get('/master/supplier');
+  Future<Response> createSupplier(Map<String, dynamic> d) =>
+      dio.post('/master/supplier', data: d);
+  Future<Response> updateSupplier(String id, Map<String, dynamic> d) =>
+      dio.put('/master/supplier/$id', data: d);
+  Future<Response> deleteSupplier(String id) =>
+      dio.delete('/master/supplier/$id');
+
+  // Master — Pelanggan
+  Future<Response> getCustomers() => dio.get('/master/pelanggan');
+  Future<Response> createCustomer(Map<String, dynamic> d) =>
+      dio.post('/master/pelanggan', data: d);
+  Future<Response> updateCustomer(String id, Map<String, dynamic> d) =>
+      dio.put('/master/pelanggan/$id', data: d);
+  Future<Response> deleteCustomer(String id) =>
+      dio.delete('/master/pelanggan/$id');
+
+  // POS
+  Future<Response> createTransaction(Map<String, dynamic> d) =>
+      dio.post('/pos/transaksi', data: d);
+
+  // WMS
+  Future<Response> getInventory() => dio.get('/wms/inventory');
+  Future<Response> getStockOpname() => dio.get('/wms/opname');
+  Future<Response> submitStockOpname(Map<String, dynamic> d) =>
+      dio.post('/wms/opname', data: d);
+  Future<Response> getStockMutation() => dio.get('/wms/mutation');
+
+  // Delivery
+  Future<Response> getDeliveryOrders({String? status}) {
+    final params = <String, dynamic>{};
+    if (status != null) params['status'] = status;
+    return dio.get('/delivery/orders',
+        queryParameters: params.isNotEmpty ? params : null);
   }
 
-  Future<Response> getMe() {
-    return dio.get('/auth/me');
+  Future<Response> assignDriver(String id, String driverId) =>
+      dio.put('/delivery/orders/$id/assign',
+          queryParameters: {'driver_id': driverId});
+  Future<Response> updateDeliveryStatus(String id, String status) =>
+      dio.put('/delivery/orders/$id/status', data: {'status': status});
+
+  // HR — Karyawan
+  Future<Response> getEmployees() => dio.get('/hr/karyawan');
+  Future<Response> createEmployee(Map<String, dynamic> d) =>
+      dio.post('/hr/karyawan', data: d);
+  Future<Response> updateEmployee(String id, Map<String, dynamic> d) =>
+      dio.put('/hr/karyawan/$id', data: d);
+  Future<Response> deleteEmployee(String id) => dio.delete('/hr/karyawan/$id');
+
+  // HR — Absensi (per karyawan)
+  Future<Response> getAttendance(String karyawanId, {int? bulan, int? tahun}) {
+    final params = <String, dynamic>{};
+    if (bulan != null) params['bulan'] = bulan;
+    if (tahun != null) params['tahun'] = tahun;
+    return dio.get('/hr/absensi/$karyawanId',
+        queryParameters: params.isNotEmpty ? params : null);
   }
 
-  // Products
-  Future<Response> getProducts() => dio.get('/products');
-  Future<Response> createProduct(Map<String, dynamic> data) =>
-      dio.post('/products', data: data);
-  Future<Response> updateProduct(String id, Map<String, dynamic> data) =>
-      dio.put('/products/$id', data: data);
-  Future<Response> deleteProduct(String id) => dio.delete('/products/$id');
+  // HR — Gaji
+  Future<Response> getSalary({int? bulan, int? tahun}) {
+    final params = <String, dynamic>{};
+    if (bulan != null) params['bulan'] = bulan;
+    if (tahun != null) params['tahun'] = tahun;
+    return dio.get('/hr/gaji',
+        queryParameters: params.isNotEmpty ? params : null);
+  }
 
-  // Categories
-  Future<Response> getCategories() => dio.get('/categories');
-  Future<Response> createCategory(Map<String, dynamic> data) =>
-      dio.post('/categories', data: data);
-  Future<Response> updateCategory(String id, Map<String, dynamic> data) =>
-      dio.put('/categories/$id', data: data);
-  Future<Response> deleteCategory(String id) => dio.delete('/categories/$id');
+  // HR — User Management
+  Future<Response> getUsers() => dio.get('/hr/users');
+  Future<Response> createUser(Map<String, dynamic> d) =>
+      dio.post('/hr/users', data: d);
+  Future<Response> deleteUser(String id) => dio.delete('/hr/users/$id');
 
-  // Units
-  Future<Response> getUnits() => dio.get('/units');
-  Future<Response> createUnit(Map<String, dynamic> data) =>
-      dio.post('/units', data: data);
-  Future<Response> updateUnit(String id, Map<String, dynamic> data) =>
-      dio.put('/units/$id', data: data);
-  Future<Response> deleteUnit(String id) => dio.delete('/units/$id');
+  // Report
+  Future<Response> getReport(String type) => dio.get('/report/$type');
+  Future<Response> getDashboardSummary() =>
+      dio.get('/report/dashboard/summary');
 
-  // Suppliers
-  Future<Response> getSuppliers() => dio.get('/suppliers');
-  Future<Response> createSupplier(Map<String, dynamic> data) =>
-      dio.post('/suppliers', data: data);
-  Future<Response> updateSupplier(String id, Map<String, dynamic> data) =>
-      dio.put('/suppliers/$id', data: data);
-  Future<Response> deleteSupplier(String id) => dio.delete('/suppliers/$id');
-
-  // Customers
-  Future<Response> getCustomers() => dio.get('/customers');
-  Future<Response> createCustomer(Map<String, dynamic> data) =>
-      dio.post('/customers', data: data);
-  Future<Response> updateCustomer(String id, Map<String, dynamic> data) =>
-      dio.put('/customers/$id', data: data);
-  Future<Response> deleteCustomer(String id) => dio.delete('/customers/$id');
-
-  // POS Transactions
-  Future<Response> createTransaction(Map<String, dynamic> data) =>
-      dio.post('/pos/transaksi', data: data);
+  // Settings
+  Future<Response> getSettings() => dio.get('/settings/');
+  Future<Response> updateSettings(FormData d) => dio.put('/settings/', data: d);
+  Future<Response> addBank(Map<String, dynamic> d) =>
+      dio.post('/settings/bank', data: d);
+  Future<Response> updateBank(String id, Map<String, dynamic> d) =>
+      dio.put('/settings/bank/$id', data: d);
+  Future<Response> deleteBank(String id) => dio.delete('/settings/bank/$id');
 }
 
 final apiServiceProvider = Provider<ApiService>((ref) {

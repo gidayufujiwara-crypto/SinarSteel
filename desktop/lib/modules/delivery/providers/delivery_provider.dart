@@ -6,7 +6,6 @@ import '../models/delivery.dart';
 class DeliveryState {
   final List<DeliveryOrder> activeOrders;
   final List<DeliveryOrder> historyOrders;
-  final List<Driver> drivers;
   final String activeSearch;
   final String historySearch;
   final String historyStatusFilter;
@@ -16,7 +15,6 @@ class DeliveryState {
   const DeliveryState({
     this.activeOrders = const [],
     this.historyOrders = const [],
-    this.drivers = const [],
     this.activeSearch = '',
     this.historySearch = '',
     this.historyStatusFilter = 'All',
@@ -27,7 +25,6 @@ class DeliveryState {
   DeliveryState copyWith({
     List<DeliveryOrder>? activeOrders,
     List<DeliveryOrder>? historyOrders,
-    List<Driver>? drivers,
     String? activeSearch,
     String? historySearch,
     String? historyStatusFilter,
@@ -37,7 +34,6 @@ class DeliveryState {
     return DeliveryState(
       activeOrders: activeOrders ?? this.activeOrders,
       historyOrders: historyOrders ?? this.historyOrders,
-      drivers: drivers ?? this.drivers,
       activeSearch: activeSearch ?? this.activeSearch,
       historySearch: historySearch ?? this.historySearch,
       historyStatusFilter: historyStatusFilter ?? this.historyStatusFilter,
@@ -84,11 +80,8 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
     state = state.copyWith(isLoading: true);
     try {
       final results = await Future.wait([
-        _api.dio.get('/delivery-orders',
-            queryParameters: {'status': 'pending,dikirim'}),
-        _api.dio.get('/delivery-orders',
-            queryParameters: {'status': 'selesai,batal'}),
-        _api.dio.get('/drivers'),
+        _api.getDeliveryOrders(status: 'pending,dikirim'),
+        _api.getDeliveryOrders(status: 'selesai,batal'),
       ]);
 
       state = state.copyWith(
@@ -98,8 +91,6 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
         historyOrders: (results[1].data as List)
             .map((j) => DeliveryOrder.fromJson(j))
             .toList(),
-        drivers:
-            (results[2].data as List).map((j) => Driver.fromJson(j)).toList(),
         isLoading: false,
       );
     } catch (e) {
@@ -113,13 +104,9 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
   void setHistoryStatusFilter(String s) =>
       state = state.copyWith(historyStatusFilter: s);
 
-  Future<String?> assignDriver(
-      String orderId, String driverId, String? coDriverId) async {
+  Future<String?> assignDriver(String orderId, String driverId) async {
     try {
-      await _api.dio.put('/delivery-orders/$orderId/assign', data: {
-        'driver_id': driverId,
-        'co_driver_id': coDriverId ?? '',
-      });
+      await _api.assignDriver(orderId, driverId);
       await _fetchAll();
       return null;
     } catch (e) {
@@ -131,9 +118,7 @@ class DeliveryNotifier extends StateNotifier<DeliveryState> {
 
   Future<String?> updateStatus(String orderId, String newStatus) async {
     try {
-      await _api.dio.put('/delivery-orders/$orderId/status', data: {
-        'status': newStatus,
-      });
+      await _api.updateDeliveryStatus(orderId, newStatus);
       await _fetchAll();
       return null;
     } catch (e) {

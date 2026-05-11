@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/api_service.dart';
 import '../models/settings_models.dart';
+import 'dart:typed_data';
 
 class SettingsState {
   final List<User> users;
@@ -44,9 +45,7 @@ class SettingsState {
   }
 
   List<User> get filteredUsers {
-    if (userSearch.isEmpty) {
-      return users;
-    }
+    if (userSearch.isEmpty) return users;
     final q = userSearch.toLowerCase();
     return users
         .where((u) =>
@@ -67,8 +66,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(isLoading: true);
     try {
       final results = await Future.wait([
-        _api.dio.get('/users'),
-        _api.dio.get('/settings'),
+        _api.getUsers(),
+        _api.getSettings(),
       ]);
 
       final users =
@@ -85,17 +84,16 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Gagal memuat settings');
+      state = state.copyWith(isLoading: false, error: 'Gagal memuat data');
     }
   }
 
   void setUserSearch(String q) => state = state.copyWith(userSearch: q);
 
-  // User CRUD
   Future<String?> addUser(
       String username, String password, String fullName, String role) async {
     try {
-      await _api.dio.post('/users', data: {
+      await _api.createUser({
         'username': username,
         'password': password,
         'full_name': fullName,
@@ -104,46 +102,20 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       await _fetchAll();
       return null;
     } catch (e) {
-      if (e is DioException) {
+      if (e is DioException)
         return e.response?.data?['detail'] ?? 'Gagal tambah user';
-      }
-      return 'Gagal terhubung';
-    }
-  }
-
-  Future<String?> updateUser(String userId,
-      {String? fullName, String? role, String? password}) async {
-    try {
-      final data = <String, dynamic>{};
-      if (fullName != null) {
-        data['full_name'] = fullName;
-      }
-      if (role != null) {
-        data['role'] = role;
-      }
-      if (password != null && password.isNotEmpty) {
-        data['password'] = password;
-      }
-      await _api.dio.put('/users/$userId', data: data);
-      await _fetchAll();
-      return null;
-    } catch (e) {
-      if (e is DioException) {
-        return e.response?.data?['detail'] ?? 'Gagal update user';
-      }
       return 'Gagal terhubung';
     }
   }
 
   Future<String?> deleteUser(String userId) async {
     try {
-      await _api.dio.delete('/users/$userId');
+      await _api.deleteUser(userId);
       await _fetchAll();
       return null;
     } catch (e) {
-      if (e is DioException) {
+      if (e is DioException)
         return e.response?.data?['detail'] ?? 'Gagal hapus user';
-      }
       return 'Gagal terhubung';
     }
   }
@@ -167,13 +139,42 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
           await MultipartFile.fromFile(logoPath, filename: 'logo.png'),
         ));
       }
-      await _api.dio.put('/settings', data: formData);
+      await _api.updateSettings(formData);
       await _fetchAll();
       return null;
     } catch (e) {
-      if (e is DioException) {
+      if (e is DioException)
         return e.response?.data?['detail'] ?? 'Gagal simpan';
-      }
+      return 'Gagal terhubung';
+    }
+  }
+
+  Future<String?> saveStorePrinterWithBytes(
+    StoreSettings store,
+    PrinterSettings printer, {
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    try {
+      final data = {
+        'store_name': store.storeName,
+        'store_address': store.address,
+        'store_phone': store.phone,
+        'receipt_footer': store.footer,
+        'printer_type': printer.type,
+        'printer_path': printer.path ?? '',
+      };
+      final formData = FormData.fromMap(data);
+      formData.files.add(MapEntry(
+        'logo',
+        MultipartFile.fromBytes(bytes, filename: fileName),
+      ));
+      await _api.updateSettings(formData);
+      await _fetchAll();
+      return null;
+    } catch (e) {
+      if (e is DioException)
+        return e.response?.data?['detail'] ?? 'Gagal simpan';
       return 'Gagal terhubung';
     }
   }
@@ -183,7 +184,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       String bankName, String accountNumber, String accountHolder,
       {String? qrisUrl}) async {
     try {
-      await _api.dio.post('/settings/bank', data: {
+      await _api.addBank({
         'bank_name': bankName,
         'account_number': accountNumber,
         'account_holder': accountHolder,
@@ -192,9 +193,8 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       await _fetchAll();
       return null;
     } catch (e) {
-      if (e is DioException) {
+      if (e is DioException)
         return e.response?.data?['detail'] ?? 'Gagal tambah bank';
-      }
       return 'Gagal terhubung';
     }
   }
@@ -203,7 +203,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       String id, String bankName, String accountNumber, String accountHolder,
       {String? qrisUrl}) async {
     try {
-      await _api.dio.put('/settings/bank/$id', data: {
+      await _api.updateBank(id, {
         'bank_name': bankName,
         'account_number': accountNumber,
         'account_holder': accountHolder,
@@ -212,22 +212,20 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       await _fetchAll();
       return null;
     } catch (e) {
-      if (e is DioException) {
+      if (e is DioException)
         return e.response?.data?['detail'] ?? 'Gagal update bank';
-      }
       return 'Gagal terhubung';
     }
   }
 
   Future<String?> deleteBank(String id) async {
     try {
-      await _api.dio.delete('/settings/bank/$id');
+      await _api.deleteBank(id);
       await _fetchAll();
       return null;
     } catch (e) {
-      if (e is DioException) {
+      if (e is DioException)
         return e.response?.data?['detail'] ?? 'Gagal hapus bank';
-      }
       return 'Gagal terhubung';
     }
   }

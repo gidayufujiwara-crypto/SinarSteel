@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../../../core/network/api_service.dart';
 import '../models/master_models.dart';
 
@@ -171,6 +172,7 @@ class MasterNotifier extends StateNotifier<MasterState> {
                 ))
             .toList(),
         isLoading: false,
+        error: null,
       );
     } catch (e) {
       state = state.copyWith(
@@ -178,14 +180,12 @@ class MasterNotifier extends StateNotifier<MasterState> {
     }
   }
 
-  // Search
   void setProductSearch(String q) => state = state.copyWith(productSearch: q);
   void setCategorySearch(String q) => state = state.copyWith(categorySearch: q);
   void setUnitSearch(String q) => state = state.copyWith(unitSearch: q);
   void setSupplierSearch(String q) => state = state.copyWith(supplierSearch: q);
   void setCustomerSearch(String q) => state = state.copyWith(customerSearch: q);
 
-  // Product CRUD
   Future<void> addProduct(Product p) async {
     try {
       final res = await _api.createProduct({
@@ -208,9 +208,7 @@ class MasterNotifier extends StateNotifier<MasterState> {
         stock: p.stock,
       );
       state = state.copyWith(products: [...state.products, newP]);
-    } catch (_) {
-      state = state.copyWith(products: [...state.products, p]);
-    }
+    } catch (_) {}
   }
 
   Future<void> updateProduct(int index, Product p) async {
@@ -239,7 +237,6 @@ class MasterNotifier extends StateNotifier<MasterState> {
     state = state.copyWith(products: list);
   }
 
-  // Category CRUD
   Future<void> addCategory(Category c) async {
     try {
       final res = await _api
@@ -251,9 +248,7 @@ class MasterNotifier extends StateNotifier<MasterState> {
             name: c.name,
             description: c.description)
       ]);
-    } catch (_) {
-      state = state.copyWith(categories: [...state.categories, c]);
-    }
+    } catch (_) {}
   }
 
   Future<void> updateCategory(int index, Category c) async {
@@ -275,7 +270,6 @@ class MasterNotifier extends StateNotifier<MasterState> {
     state = state.copyWith(categories: list);
   }
 
-  // Unit CRUD
   Future<void> addUnit(Unit u) async {
     try {
       final res = await _api
@@ -287,9 +281,7 @@ class MasterNotifier extends StateNotifier<MasterState> {
             name: u.name,
             description: u.description)
       ]);
-    } catch (_) {
-      state = state.copyWith(units: [...state.units, u]);
-    }
+    } catch (_) {}
   }
 
   Future<void> updateUnit(int index, Unit u) async {
@@ -311,7 +303,6 @@ class MasterNotifier extends StateNotifier<MasterState> {
     state = state.copyWith(units: list);
   }
 
-  // Supplier CRUD
   Future<void> addSupplier(Supplier s) async {
     try {
       final res = await _api.createSupplier({
@@ -329,9 +320,7 @@ class MasterNotifier extends StateNotifier<MasterState> {
             contact: s.contact,
             address: s.address)
       ]);
-    } catch (_) {
-      state = state.copyWith(suppliers: [...state.suppliers, s]);
-    }
+    } catch (_) {}
   }
 
   Future<void> updateSupplier(int index, Supplier s) async {
@@ -357,7 +346,6 @@ class MasterNotifier extends StateNotifier<MasterState> {
     state = state.copyWith(suppliers: list);
   }
 
-  // Customer CRUD
   Future<void> addCustomer(Customer c) async {
     try {
       final res = await _api.createCustomer({
@@ -377,9 +365,7 @@ class MasterNotifier extends StateNotifier<MasterState> {
             contact: c.contact,
             address: c.address)
       ]);
-    } catch (_) {
-      state = state.copyWith(customers: [...state.customers, c]);
-    }
+    } catch (_) {}
   }
 
   Future<void> updateCustomer(int index, Customer c) async {

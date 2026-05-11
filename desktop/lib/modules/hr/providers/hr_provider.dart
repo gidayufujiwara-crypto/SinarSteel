@@ -8,8 +8,11 @@ class HrState {
   final List<Attendance> attendances;
   final List<SalarySlip> salarySlips;
   final String employeeSearch;
-  final String attendanceFilterMonth; // "YYYY-MM"
-  final String salaryFilterMonth; // "YYYY-MM"
+  final String? selectedKaryawanId;
+  final String? attendanceBulan;
+  final String? attendanceTahun;
+  final String? salaryBulan;
+  final String? salaryTahun;
   final bool isLoading;
   final String? error;
 
@@ -18,8 +21,11 @@ class HrState {
     this.attendances = const [],
     this.salarySlips = const [],
     this.employeeSearch = '',
-    this.attendanceFilterMonth = '',
-    this.salaryFilterMonth = '',
+    this.selectedKaryawanId,
+    this.attendanceBulan,
+    this.attendanceTahun,
+    this.salaryBulan,
+    this.salaryTahun,
     this.isLoading = false,
     this.error,
   });
@@ -29,8 +35,11 @@ class HrState {
     List<Attendance>? attendances,
     List<SalarySlip>? salarySlips,
     String? employeeSearch,
-    String? attendanceFilterMonth,
-    String? salaryFilterMonth,
+    String? selectedKaryawanId,
+    String? attendanceBulan,
+    String? attendanceTahun,
+    String? salaryBulan,
+    String? salaryTahun,
     bool? isLoading,
     String? error,
   }) {
@@ -39,18 +48,18 @@ class HrState {
       attendances: attendances ?? this.attendances,
       salarySlips: salarySlips ?? this.salarySlips,
       employeeSearch: employeeSearch ?? this.employeeSearch,
-      attendanceFilterMonth:
-          attendanceFilterMonth ?? this.attendanceFilterMonth,
-      salaryFilterMonth: salaryFilterMonth ?? this.salaryFilterMonth,
+      selectedKaryawanId: selectedKaryawanId ?? this.selectedKaryawanId,
+      attendanceBulan: attendanceBulan ?? this.attendanceBulan,
+      attendanceTahun: attendanceTahun ?? this.attendanceTahun,
+      salaryBulan: salaryBulan ?? this.salaryBulan,
+      salaryTahun: salaryTahun ?? this.salaryTahun,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
   }
 
   List<Employee> get filteredEmployees {
-    if (employeeSearch.isEmpty) {
-      return employees;
-    }
+    if (employeeSearch.isEmpty) return employees;
     final q = employeeSearch.toLowerCase();
     return employees
         .where((e) =>
@@ -58,67 +67,90 @@ class HrState {
             e.nip.toLowerCase().contains(q))
         .toList();
   }
-
-  List<Attendance> get filteredAttendances {
-    if (attendanceFilterMonth.isEmpty) {
-      return attendances;
-    }
-    return attendances
-        .where((a) => a.date.startsWith(attendanceFilterMonth))
-        .toList();
-  }
-
-  List<SalarySlip> get filteredSalarySlips {
-    if (salaryFilterMonth.isEmpty) {
-      return salarySlips;
-    }
-    return salarySlips.where((s) => s.period == salaryFilterMonth).toList();
-  }
 }
 
 class HrNotifier extends StateNotifier<HrState> {
   final ApiService _api;
 
   HrNotifier(this._api) : super(const HrState()) {
-    _fetchAll();
+    _fetchEmployees();
   }
 
-  Future<void> _fetchAll() async {
+  Future<void> _fetchEmployees() async {
     state = state.copyWith(isLoading: true);
     try {
-      final results = await Future.wait([
-        _api.dio.get('/employees'),
-        _api.dio.get('/attendance'),
-        _api.dio.get('/salary'),
-      ]);
-
+      final res = await _api.getEmployees();
       state = state.copyWith(
-        employees:
-            (results[0].data as List).map((j) => Employee.fromJson(j)).toList(),
-        attendances: (results[1].data as List)
-            .map((j) => Attendance.fromJson(j))
-            .toList(),
-        salarySlips: (results[2].data as List)
-            .map((j) => SalarySlip.fromJson(j))
-            .toList(),
+        employees: (res.data as List).map((j) => Employee.fromJson(j)).toList(),
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: 'Gagal memuat data HR');
+      state =
+          state.copyWith(isLoading: false, error: 'Gagal memuat data karyawan');
     }
   }
 
   void setEmployeeSearch(String q) => state = state.copyWith(employeeSearch: q);
-  void setAttendanceFilter(String month) =>
-      state = state.copyWith(attendanceFilterMonth: month);
-  void setSalaryFilter(String month) =>
-      state = state.copyWith(salaryFilterMonth: month);
+
+  Future<void> selectKaryawan(String id) async {
+    state = state.copyWith(selectedKaryawanId: id);
+    await fetchAttendance();
+  }
+
+  Future<void> fetchAttendance() async {
+    if (state.selectedKaryawanId == null) return;
+    state = state.copyWith(isLoading: true);
+    try {
+      final int? bulan = state.attendanceBulan != null
+          ? int.tryParse(state.attendanceBulan!)
+          : null;
+      final int? tahun = state.attendanceTahun != null
+          ? int.tryParse(state.attendanceTahun!)
+          : null;
+      final res = await _api.getAttendance(state.selectedKaryawanId!,
+          bulan: bulan, tahun: tahun);
+      state = state.copyWith(
+        attendances:
+            (res.data as List).map((j) => Attendance.fromJson(j)).toList(),
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: 'Gagal memuat absensi');
+    }
+  }
+
+  Future<void> fetchSalary() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final int? bulan =
+          state.salaryBulan != null ? int.tryParse(state.salaryBulan!) : null;
+      final int? tahun =
+          state.salaryTahun != null ? int.tryParse(state.salaryTahun!) : null;
+      final res = await _api.getSalary(bulan: bulan, tahun: tahun);
+      state = state.copyWith(
+        salarySlips:
+            (res.data as List).map((j) => SalarySlip.fromJson(j)).toList(),
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: 'Gagal memuat slip gaji');
+    }
+  }
+
+  void setAttendanceFilterBulan(String bulan) =>
+      state = state.copyWith(attendanceBulan: bulan);
+  void setAttendanceFilterTahun(String tahun) =>
+      state = state.copyWith(attendanceTahun: tahun);
+  void setSalaryFilterBulan(String bulan) =>
+      state = state.copyWith(salaryBulan: bulan);
+  void setSalaryFilterTahun(String tahun) =>
+      state = state.copyWith(salaryTahun: tahun);
 
   Future<String?> addEmployee(String nip, String fullName, String position,
       String joinDate, double baseSalary,
       {String? phone}) async {
     try {
-      await _api.dio.post('/employees', data: {
+      await _api.createEmployee({
         'nip': nip,
         'full_name': fullName,
         'position': position,
@@ -126,12 +158,11 @@ class HrNotifier extends StateNotifier<HrState> {
         'base_salary': baseSalary,
         'phone': phone ?? '',
       });
-      await _fetchAll();
+      await _fetchEmployees();
       return null;
     } catch (e) {
-      if (e is DioException) {
+      if (e is DioException)
         return e.response?.data?['detail'] ?? 'Gagal tambah';
-      }
       return 'Gagal terhubung';
     }
   }
@@ -140,32 +171,30 @@ class HrNotifier extends StateNotifier<HrState> {
       String position, double baseSalary,
       {String? phone}) async {
     try {
-      await _api.dio.put('/employees/$id', data: {
+      await _api.updateEmployee(id, {
         'nip': nip,
         'full_name': fullName,
         'position': position,
         'base_salary': baseSalary,
         'phone': phone ?? '',
       });
-      await _fetchAll();
+      await _fetchEmployees();
       return null;
     } catch (e) {
-      if (e is DioException) {
+      if (e is DioException)
         return e.response?.data?['detail'] ?? 'Gagal update';
-      }
       return 'Gagal terhubung';
     }
   }
 
   Future<String?> deleteEmployee(String id) async {
     try {
-      await _api.dio.delete('/employees/$id');
-      await _fetchAll();
+      await _api.deleteEmployee(id);
+      await _fetchEmployees();
       return null;
     } catch (e) {
-      if (e is DioException) {
+      if (e is DioException)
         return e.response?.data?['detail'] ?? 'Gagal hapus';
-      }
       return 'Gagal terhubung';
     }
   }

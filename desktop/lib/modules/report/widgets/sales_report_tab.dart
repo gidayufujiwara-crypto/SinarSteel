@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:excel/excel.dart' as excel;
-import 'package:path_provider/path_provider.dart';
-import 'dart:io' show File;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html'
-    as html; // ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import '../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/export_helper.dart';
 import '../providers/report_provider.dart';
 
 class SalesReportTab extends ConsumerStatefulWidget {
   const SalesReportTab({super.key});
-
   @override
   ConsumerState<SalesReportTab> createState() => _SalesReportTabState();
 }
@@ -42,43 +37,36 @@ class _SalesReportTabState extends ConsumerState<SalesReportTab> {
       excel.TextCellValue('Tanggal'),
       excel.TextCellValue('No Transaksi'),
       excel.TextCellValue('Pelanggan'),
-      excel.TextCellValue('Produk'),
-      excel.TextCellValue('Qty'),
       excel.TextCellValue('Total'),
+      excel.TextCellValue('Pembayaran'),
     ]);
     for (var row in data) {
+      final total = _parseNum(row['total']);
       sheet.appendRow([
-        excel.TextCellValue(row['date'] ?? ''),
-        excel.TextCellValue(row['order_number'] ?? ''),
-        excel.TextCellValue(row['customer'] ?? ''),
-        excel.TextCellValue(row['product'] ?? ''),
-        excel.TextCellValue(row['quantity']?.toString() ?? '0'),
-        excel.TextCellValue((row['total'] ?? 0).toString()),
+        excel.TextCellValue(row['tanggal'] ?? ''),
+        excel.TextCellValue(row['no_transaksi'] ?? ''),
+        excel.TextCellValue(row['pelanggan'] ?? ''),
+        excel.TextCellValue(total.toString()),
+        excel.TextCellValue(row['jenis_pembayaran'] ?? ''),
       ]);
     }
     final bytes = ex.save();
-    if (bytes == null) return;
-
-    if (kIsWeb) {
-      final blob = html.Blob([bytes],
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      html.AnchorElement(href: url)
-        ..setAttribute('download', 'laporan_penjualan.xlsx')
-        ..click();
-      html.Url.revokeObjectUrl(url);
-    } else {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/laporan_penjualan.xlsx');
-      await file.writeAsBytes(bytes);
+    if (bytes != null) {
+      saveExcel(bytes, 'laporan_penjualan.xlsx');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('File disimpan di ${file.path}'),
+          const SnackBar(
+              content: Text('File Excel disimpan'),
               backgroundColor: AppColors.neonGreen),
         );
       }
     }
+  }
+
+  double _parseNum(dynamic val) {
+    if (val == null) return 0;
+    if (val is num) return val.toDouble();
+    return double.tryParse(val.toString()) ?? 0;
   }
 
   @override
@@ -88,7 +76,7 @@ class _SalesReportTabState extends ConsumerState<SalesReportTab> {
 
     double totalRevenue = 0;
     for (var row in data) {
-      totalRevenue += (row['total'] ?? 0) as num;
+      totalRevenue += _parseNum(row['total']);
     }
 
     return Column(
@@ -159,22 +147,15 @@ class _SalesReportTabState extends ConsumerState<SalesReportTab> {
                           fontSize: 11,
                           fontWeight: FontWeight.w600))),
               Expanded(
-                  flex: 3,
-                  child: Text('Produk',
-                      style: TextStyle(
-                          color: AppColors.textDim,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600))),
-              Expanded(
-                  flex: 1,
-                  child: Text('Qty',
+                  flex: 2,
+                  child: Text('Total',
                       style: TextStyle(
                           color: AppColors.textDim,
                           fontSize: 11,
                           fontWeight: FontWeight.w600))),
               Expanded(
                   flex: 2,
-                  child: Text('Total',
+                  child: Text('Pembayaran',
                       style: TextStyle(
                           color: AppColors.textDim,
                           fontSize: 11,
@@ -187,6 +168,7 @@ class _SalesReportTabState extends ConsumerState<SalesReportTab> {
             itemCount: data.length,
             itemBuilder: (ctx, i) {
               final row = data[i];
+              final total = _parseNum(row['total']);
               return Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -198,35 +180,29 @@ class _SalesReportTabState extends ConsumerState<SalesReportTab> {
                   children: [
                     Expanded(
                         flex: 2,
-                        child: Text(row['date'] ?? '',
+                        child: Text(row['tanggal'] ?? '',
                             style: const TextStyle(
                                 color: AppColors.textPrimary, fontSize: 12))),
                     Expanded(
                         flex: 3,
-                        child: Text(row['order_number'] ?? '',
+                        child: Text(row['no_transaksi'] ?? '',
                             style: const TextStyle(
                                 color: AppColors.textPrimary, fontSize: 12))),
                     Expanded(
                         flex: 2,
-                        child: Text(row['customer'] ?? '',
+                        child: Text(row['pelanggan'] ?? '',
                             style: const TextStyle(
                                 color: AppColors.textDim, fontSize: 11))),
-                    Expanded(
-                        flex: 3,
-                        child: Text(row['product'] ?? '',
-                            style: const TextStyle(
-                                color: AppColors.textDim, fontSize: 11))),
-                    Expanded(
-                        flex: 1,
-                        child: Text(row['quantity']?.toString() ?? '0',
-                            style: const TextStyle(
-                                color: AppColors.textPrimary, fontSize: 12))),
                     Expanded(
                         flex: 2,
-                        child: Text(
-                            'Rp ${_formatPrice((row['total'] ?? 0).toDouble())}',
+                        child: Text('Rp ${_formatPrice(total)}',
                             style: const TextStyle(
                                 color: AppColors.neonGreen, fontSize: 11))),
+                    Expanded(
+                        flex: 2,
+                        child: Text(row['jenis_pembayaran'] ?? '',
+                            style: const TextStyle(
+                                color: AppColors.textDim, fontSize: 11))),
                   ],
                 ),
               );

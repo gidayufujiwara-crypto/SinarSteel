@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'core/auth/auth_provider.dart';
+import 'core/theme/app_theme.dart';
 import 'modules/auth/screens/login_screen.dart';
 import 'modules/dashboard/screens/dashboard_screen.dart';
 
@@ -14,9 +16,16 @@ class SinarSteelApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF060A10),
-        primaryColor: const Color(0xFF00F5FF),
-        fontFamily: 'Rajdhani',
+        scaffoldBackgroundColor: AppColors.bgDark,
+        primaryColor: AppColors.neonCyan,
+        textTheme: GoogleFonts.rajdhaniTextTheme(
+          ThemeData.dark().textTheme,
+        ).copyWith(
+          headlineLarge: GoogleFonts.orbitron(),
+          headlineMedium: GoogleFonts.orbitron(),
+          headlineSmall: GoogleFonts.orbitron(),
+          titleLarge: GoogleFonts.orbitron(),
+        ),
       ),
       home: const AuthGate(),
     );

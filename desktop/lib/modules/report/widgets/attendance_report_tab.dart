@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:excel/excel.dart' as excel;
-import 'package:path_provider/path_provider.dart';
-import 'dart:io' show File;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html'
-    as html; // ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import '../../../core/theme/app_theme.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/export_helper.dart';
 import '../providers/report_provider.dart';
 
 class AttendanceReportTab extends ConsumerStatefulWidget {
   const AttendanceReportTab({super.key});
-
   @override
   ConsumerState<AttendanceReportTab> createState() =>
       _AttendanceReportTabState();
@@ -52,24 +47,12 @@ class _AttendanceReportTabState extends ConsumerState<AttendanceReportTab> {
       ]);
     }
     final bytes = ex.save();
-    if (bytes == null) return;
-
-    if (kIsWeb) {
-      final blob = html.Blob([bytes],
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      html.AnchorElement(href: url)
-        ..setAttribute('download', 'laporan_absensi.xlsx')
-        ..click();
-      html.Url.revokeObjectUrl(url);
-    } else {
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/laporan_absensi.xlsx');
-      await file.writeAsBytes(bytes);
+    if (bytes != null) {
+      saveExcel(bytes, 'laporan_absensi.xlsx');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('File disimpan di ${file.path}'),
+          const SnackBar(
+              content: Text('File Excel disimpan'),
               backgroundColor: AppColors.neonGreen),
         );
       }
@@ -80,7 +63,6 @@ class _AttendanceReportTabState extends ConsumerState<AttendanceReportTab> {
   Widget build(BuildContext context) {
     final reportState = ref.watch(reportProvider);
     final data = reportState.filteredAttendance;
-
     return Column(
       children: [
         Container(
@@ -112,14 +94,13 @@ class _AttendanceReportTabState extends ConsumerState<AttendanceReportTab> {
               ),
               const SizedBox(width: 8),
               ElevatedButton(
-                onPressed: _applyFilter,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.neonOrange,
-                    foregroundColor: AppColors.bgDark,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10)),
-                child: const Text('Filter', style: TextStyle(fontSize: 11)),
-              ),
+                  onPressed: _applyFilter,
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.neonOrange,
+                      foregroundColor: AppColors.bgDark,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10)),
+                  child: const Text('Filter', style: TextStyle(fontSize: 11))),
               const Spacer(),
               IconButton(
                 onPressed: () => _exportExcel(data),
@@ -174,51 +155,57 @@ class _AttendanceReportTabState extends ConsumerState<AttendanceReportTab> {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            itemCount: data.length,
-            itemBuilder: (ctx, i) {
-              final row = data[i];
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                    border: Border(
-                        bottom: BorderSide(
-                            color: AppColors.borderNeon.withOpacity(0.3)))),
-                child: Row(
-                  children: [
-                    Expanded(
-                        flex: 3,
-                        child: Text(row['employee_name'] ?? '',
-                            style: const TextStyle(
-                                color: AppColors.textPrimary, fontSize: 12))),
-                    Expanded(
-                        flex: 2,
-                        child: Text(row['date'] ?? '',
-                            style: const TextStyle(
-                                color: AppColors.textDim, fontSize: 11))),
-                    Expanded(
-                        flex: 2,
-                        child: Text(row['status'] ?? '',
-                            style: TextStyle(
-                                color: _statusColor(row['status'] ?? ''),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600))),
-                    Expanded(
-                        flex: 2,
-                        child: Text(row['check_in'] ?? '-',
-                            style: const TextStyle(
-                                color: AppColors.textDim, fontSize: 11))),
-                    Expanded(
-                        flex: 2,
-                        child: Text(row['check_out'] ?? '-',
-                            style: const TextStyle(
-                                color: AppColors.textDim, fontSize: 11))),
-                  ],
+          child: data.isEmpty
+              ? const Center(
+                  child: Text('Belum ada data absensi',
+                      style: TextStyle(color: AppColors.textDim)))
+              : ListView.builder(
+                  itemCount: data.length,
+                  itemBuilder: (ctx, i) {
+                    final row = data[i];
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                          border: Border(
+                              bottom: BorderSide(
+                                  color:
+                                      AppColors.borderNeon.withOpacity(0.3)))),
+                      child: Row(
+                        children: [
+                          Expanded(
+                              flex: 3,
+                              child: Text(row['employee_name'] ?? '',
+                                  style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 12))),
+                          Expanded(
+                              flex: 2,
+                              child: Text(row['date'] ?? '',
+                                  style: const TextStyle(
+                                      color: AppColors.textDim, fontSize: 11))),
+                          Expanded(
+                              flex: 2,
+                              child: Text(row['status'] ?? '',
+                                  style: TextStyle(
+                                      color: _statusColor(row['status'] ?? ''),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600))),
+                          Expanded(
+                              flex: 2,
+                              child: Text(row['check_in'] ?? '-',
+                                  style: const TextStyle(
+                                      color: AppColors.textDim, fontSize: 11))),
+                          Expanded(
+                              flex: 2,
+                              child: Text(row['check_out'] ?? '-',
+                                  style: const TextStyle(
+                                      color: AppColors.textDim, fontSize: 11))),
+                        ],
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );

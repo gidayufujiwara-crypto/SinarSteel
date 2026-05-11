@@ -4,6 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/settings_provider.dart';
 import '../models/settings_models.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:typed_data';
 
 class StorePrinterTab extends ConsumerStatefulWidget {
   const StorePrinterTab({super.key});
@@ -20,13 +22,15 @@ class _StorePrinterTabState extends ConsumerState<StorePrinterTab> {
   final _footerCtrl = TextEditingController();
   String _printerType = 'usb';
   final _printerPathCtrl = TextEditingController();
-  String? _logoPath;
+
+  // Untuk upload logo (web vs non‑web)
   String? _logoFileName;
+  Uint8List? _logoBytes; // digunakan di web
+  String? _logoPath; // digunakan di desktop
 
   @override
   void initState() {
     super.initState();
-    // Isi dari state setelah build pertama
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final s = ref.read(settingsProvider);
       _storeNameCtrl.text = s.store.storeName;
@@ -51,19 +55,27 @@ class _StorePrinterTabState extends ConsumerState<StorePrinterTab> {
   Future<void> _pickLogo() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.image,
-      withData: false,
+      withData: kIsWeb, // ambil bytes hanya di web
       withReadStream: false,
     );
-    if (result != null && result.files.single.path != null) {
+    if (result != null && result.files.isNotEmpty) {
+      final file = result.files.first;
       setState(() {
-        _logoPath = result.files.single.path!;
-        _logoFileName = result.files.single.name;
+        _logoFileName = file.name;
+        if (kIsWeb) {
+          _logoBytes = file.bytes;
+          _logoPath = null;
+        } else {
+          _logoPath = file.path;
+          _logoBytes = null;
+        }
       });
     }
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
     final store = StoreSettings(
       storeName: _storeNameCtrl.text.trim(),
       address: _addressCtrl.text.trim(),
@@ -77,20 +89,37 @@ class _StorePrinterTabState extends ConsumerState<StorePrinterTab> {
           : _printerPathCtrl.text.trim(),
     );
 
-    final error = await ref.read(settingsProvider.notifier).saveStorePrinter(
-          store,
-          printer,
-          logoPath: _logoPath,
-        );
+    String? error;
+    if (_logoBytes != null) {
+      // Web – kirim via bytes
+      error =
+          await ref.read(settingsProvider.notifier).saveStorePrinterWithBytes(
+                store,
+                printer,
+                bytes: _logoBytes!,
+                fileName: _logoFileName ?? 'logo.png',
+              );
+    } else {
+      // Desktop – kirim via path
+      error = await ref.read(settingsProvider.notifier).saveStorePrinter(
+            store,
+            printer,
+            logoPath: _logoPath,
+          );
+    }
+
     if (error != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(error), backgroundColor: AppColors.neonOrange));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: AppColors.neonOrange),
+      );
       return;
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Pengaturan disimpan'),
-          backgroundColor: AppColors.neonGreen));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Pengaturan disimpan'),
+            backgroundColor: AppColors.neonGreen),
+      );
     }
   }
 
@@ -98,7 +127,6 @@ class _StorePrinterTabState extends ConsumerState<StorePrinterTab> {
   Widget build(BuildContext context) {
     final settingsState = ref.watch(settingsProvider);
     final store = settingsState.store;
-    final printer = settingsState.printer;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -107,13 +135,13 @@ class _StorePrinterTabState extends ConsumerState<StorePrinterTab> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Info Toko (kiri)
             Expanded(
               child: Card(
                 color: AppColors.bgCard,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: AppColors.borderNeon)),
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: AppColors.borderNeon),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -134,7 +162,6 @@ class _StorePrinterTabState extends ConsumerState<StorePrinterTab> {
                       const SizedBox(height: 12),
                       _buildField('Footer Struk', _footerCtrl),
                       const SizedBox(height: 16),
-                      // Upload Logo
                       const Text('Logo Toko',
                           style: TextStyle(
                               color: AppColors.textDim, fontSize: 12)),
@@ -153,7 +180,7 @@ class _StorePrinterTabState extends ConsumerState<StorePrinterTab> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          if (store.logoUrl != null && _logoPath == null)
+                          if (store.logoUrl != null && _logoFileName == null)
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8),
                               child: Image.network(
@@ -166,20 +193,9 @@ class _StorePrinterTabState extends ConsumerState<StorePrinterTab> {
                                     color: AppColors.textDim),
                               ),
                             ),
-                          if (_logoPath != null)
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                _logoPath!,
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
-                                    Icons.image,
-                                    color: AppColors.neonGreen,
-                                    size: 40),
-                              ),
-                            ),
+                          if (_logoFileName != null)
+                            const Icon(Icons.check_circle,
+                                color: AppColors.neonGreen, size: 32),
                         ],
                       ),
                     ],
@@ -188,13 +204,13 @@ class _StorePrinterTabState extends ConsumerState<StorePrinterTab> {
               ),
             ),
             const SizedBox(width: 24),
-            // Printer (kanan)
             Expanded(
               child: Card(
                 color: AppColors.bgCard,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: AppColors.borderNeon)),
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: AppColors.borderNeon),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(

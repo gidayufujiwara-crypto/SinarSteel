@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/product_tab.dart';
 import '../widgets/category_unit_tab.dart';
@@ -8,7 +9,6 @@ import '../widgets/customer_tab.dart';
 
 class MasterScreen extends ConsumerStatefulWidget {
   const MasterScreen({super.key});
-
   @override
   ConsumerState<MasterScreen> createState() => _MasterScreenState();
 }
@@ -16,7 +16,6 @@ class MasterScreen extends ConsumerStatefulWidget {
 class _MasterScreenState extends ConsumerState<MasterScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
   @override
   void initState() {
     super.initState();
@@ -41,30 +40,23 @@ class _MasterScreenState extends ConsumerState<MasterScreen>
             unselectedLabelColor: AppColors.textDim,
             indicatorColor: AppColors.neonCyan,
             indicatorWeight: 2,
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-              letterSpacing: 1,
-            ),
+            labelStyle: GoogleFonts.rajdhani(
+                fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 1),
             tabs: const [
               Tab(text: 'PRODUK'),
               Tab(text: 'KATEGORI / SATUAN'),
               Tab(text: 'SUPPLIER'),
-              Tab(text: 'PELANGGAN'),
+              Tab(text: 'PELANGGAN')
             ],
           ),
         ),
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: const [
-              ProductTab(),
-              CategoryUnitTab(),
-              SupplierTab(),
-              CustomerTab(),
-            ],
-          ),
-        ),
+            child: TabBarView(controller: _tabController, children: const [
+          ProductTab(),
+          CategoryUnitTab(),
+          SupplierTab(),
+          CustomerTab()
+        ])),
       ],
     );
   }

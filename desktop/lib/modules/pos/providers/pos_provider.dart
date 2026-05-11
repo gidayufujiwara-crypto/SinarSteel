@@ -7,13 +7,7 @@ class CartItem {
   final Product product;
   int quantity;
   double discount;
-
-  CartItem({
-    required this.product,
-    this.quantity = 1,
-    this.discount = 0,
-  });
-
+  CartItem({required this.product, this.quantity = 1, this.discount = 0});
   double get subtotal => (product.price * quantity) - discount;
 }
 
@@ -76,115 +70,14 @@ class PosNotifier extends StateNotifier<PosState> {
       final res = await _api.getProducts();
       final List<Product> products =
           (res.data as List).map((json) => Product.fromJson(json)).toList();
-      state = state.copyWith(products: products, isLoading: false);
+      state = state.copyWith(products: products, isLoading: false, error: null);
     } catch (e) {
-      // Jika API gagal, fallback ke data dummy
-      _loadDummyProducts();
+      state = state.copyWith(
+          isLoading: false, error: 'Gagal memuat produk dari server');
     }
   }
 
-  void _loadDummyProducts() {
-    final dummy = [
-      Product(
-          id: '1',
-          code: 'BSN-001',
-          name: 'Besi SNI 10mm',
-          category: 'Besi',
-          price: 85000,
-          cost: 72000,
-          stock: 50,
-          unit: 'batang'),
-      Product(
-          id: '2',
-          code: 'BSN-002',
-          name: 'Besi SNI 12mm',
-          category: 'Besi',
-          price: 125000,
-          cost: 105000,
-          stock: 35,
-          unit: 'batang'),
-      Product(
-          id: '3',
-          code: 'PLT-001',
-          name: 'Plat Bordes 1.2mm',
-          category: 'Plat',
-          price: 450000,
-          cost: 380000,
-          stock: 20,
-          unit: 'lembar'),
-      Product(
-          id: '4',
-          code: 'PLT-002',
-          name: 'Plat Strip 3mm x 30mm',
-          category: 'Plat',
-          price: 35000,
-          cost: 28000,
-          stock: 100,
-          unit: 'batang'),
-      Product(
-          id: '5',
-          code: 'PIP-001',
-          name: 'Pipa Galvanis 1"',
-          category: 'Pipa',
-          price: 95000,
-          cost: 78000,
-          stock: 40,
-          unit: 'batang'),
-      Product(
-          id: '6',
-          code: 'PIP-002',
-          name: 'Pipa Galvanis 2"',
-          category: 'Pipa',
-          price: 175000,
-          cost: 145000,
-          stock: 25,
-          unit: 'batang'),
-      Product(
-          id: '7',
-          code: 'SKR-001',
-          name: 'Sekrup Baja 5cm (box)',
-          category: 'Aksesoris',
-          price: 25000,
-          cost: 18000,
-          stock: 200,
-          unit: 'box'),
-      Product(
-          id: '8',
-          code: 'ELK-001',
-          name: 'Elektroda LB52 2.6mm',
-          category: 'Aksesoris',
-          price: 120000,
-          cost: 95000,
-          stock: 60,
-          unit: 'pack'),
-      Product(
-          id: '9',
-          code: 'HLL-001',
-          name: 'Hollow 4x4 Galvanis',
-          category: 'Hollow',
-          price: 65000,
-          cost: 52000,
-          stock: 30,
-          unit: 'batang'),
-      Product(
-          id: '10',
-          code: 'WRM-001',
-          name: 'Wiremesh M6',
-          category: 'Wiremesh',
-          price: 350000,
-          cost: 290000,
-          stock: 15,
-          unit: 'lembar'),
-    ];
-    state = state.copyWith(
-        products: dummy,
-        isLoading: false,
-        error: 'Gagal memuat produk dari server. Data dummy ditampilkan.');
-  }
-
-  void setSearch(String query) {
-    state = state.copyWith(searchQuery: query);
-  }
+  void setSearch(String query) => state = state.copyWith(searchQuery: query);
 
   void addToCart(Product product) {
     final existingIndex =
@@ -213,9 +106,7 @@ class PosNotifier extends StateNotifier<PosState> {
     state = state.copyWith(cart: updatedCart);
   }
 
-  void clearCart() {
-    state = state.copyWith(cart: []);
-  }
+  void clearCart() => state = state.copyWith(cart: []);
 
   Future<String?> submitTransaction(String paymentMethod) async {
     if (state.cart.isEmpty) return 'Keranjang kosong';
@@ -230,21 +121,18 @@ class PosNotifier extends StateNotifier<PosState> {
                 'subtotal': item.subtotal,
               })
           .toList();
-
-      final payload = {
+      await _api.createTransaction({
         'payment_method': paymentMethod,
         'total_amount': state.grandTotal,
         'items': items,
-      };
-
-      await _api.createTransaction(payload);
-      return null; // Sukses
+      });
+      return null;
     } catch (e) {
       if (e is DioException) {
         return e.response?.data?['detail']?.toString() ??
             'Gagal menyimpan transaksi';
       }
-      return 'Gagal terhubung ke server. Transaksi disimpan lokal.';
+      return 'Gagal terhubung ke server';
     }
   }
 }

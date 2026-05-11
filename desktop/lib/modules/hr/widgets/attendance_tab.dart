@@ -8,53 +8,96 @@ class AttendanceTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hrState = ref.watch(hrProvider);
-    final attendances = hrState.filteredAttendances;
-
+    final state = ref.watch(hrProvider);
     return Column(
       children: [
-        // Filter
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: AppColors.bgPanel,
+        // Pilih Karyawan + Filter bulan/tahun
+        Padding(
+          padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              const Text('Periode:',
-                  style: TextStyle(color: AppColors.textDim, fontSize: 12)),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 150,
-                child: TextField(
-                  style: const TextStyle(
-                      color: AppColors.textPrimary, fontSize: 12),
-                  decoration: InputDecoration(
-                    hintText: 'YYYY-MM',
-                    hintStyle:
-                        const TextStyle(color: AppColors.textDim, fontSize: 12),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: state.selectedKaryawanId,
+                  items: state.employees
+                      .map((e) => DropdownMenuItem(
+                            value: e.id,
+                            child: Text(e.fullName,
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13)),
+                          ))
+                      .toList(),
+                  onChanged: (v) =>
+                      ref.read(hrProvider.notifier).selectKaryawan(v!),
+                  decoration: const InputDecoration(
+                    labelText: 'Pilih Karyawan',
+                    labelStyle:
+                        TextStyle(color: AppColors.textDim, fontSize: 11),
+                    filled: true,
+                    fillColor: AppColors.bgDark,
                     isDense: true,
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    fillColor: AppColors.bgDark,
-                    filled: true,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4),
-                        borderSide:
-                            const BorderSide(color: AppColors.borderNeon)),
+                        EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(),
                   ),
-                  onChanged: (v) => ref
-                      .read(hrProvider.notifier)
-                      .setAttendanceFilter(v.trim()),
+                  dropdownColor: AppColors.bgCard,
                 ),
               ),
               const SizedBox(width: 8),
-              if (hrState.attendanceFilterMonth.isNotEmpty)
-                TextButton(
-                  onPressed: () =>
-                      ref.read(hrProvider.notifier).setAttendanceFilter(''),
-                  child: const Text('Semua',
-                      style:
-                          TextStyle(color: AppColors.neonCyan, fontSize: 11)),
+              SizedBox(
+                width: 80,
+                child: TextField(
+                  style: const TextStyle(
+                      color: AppColors.textPrimary, fontSize: 12),
+                  decoration: const InputDecoration(
+                    hintText: 'Bulan',
+                    hintStyle:
+                        TextStyle(color: AppColors.textDim, fontSize: 12),
+                    isDense: true,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    filled: true,
+                    fillColor: AppColors.bgDark,
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (v) =>
+                      ref.read(hrProvider.notifier).setAttendanceFilterBulan(v),
                 ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 80,
+                child: TextField(
+                  style: const TextStyle(
+                      color: AppColors.textPrimary, fontSize: 12),
+                  decoration: const InputDecoration(
+                    hintText: 'Tahun',
+                    hintStyle:
+                        TextStyle(color: AppColors.textDim, fontSize: 12),
+                    isDense: true,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    filled: true,
+                    fillColor: AppColors.bgDark,
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (v) =>
+                      ref.read(hrProvider.notifier).setAttendanceFilterTahun(v),
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () =>
+                    ref.read(hrProvider.notifier).fetchAttendance(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.neonPink,
+                  foregroundColor: AppColors.bgDark,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                child: const Text('Lihat', style: TextStyle(fontSize: 11)),
+              ),
             ],
           ),
         ),
@@ -64,13 +107,6 @@ class AttendanceTab extends ConsumerWidget {
           color: AppColors.bgCard,
           child: const Row(
             children: [
-              Expanded(
-                  flex: 3,
-                  child: Text('Karyawan',
-                      style: TextStyle(
-                          color: AppColors.textDim,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600))),
               Expanded(
                   flex: 2,
                   child: Text('Tanggal',
@@ -105,9 +141,9 @@ class AttendanceTab extends ConsumerWidget {
         // List
         Expanded(
           child: ListView.builder(
-            itemCount: attendances.length,
+            itemCount: state.attendances.length,
             itemBuilder: (ctx, i) {
-              final a = attendances[i];
+              final a = state.attendances[i];
               return Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -117,11 +153,6 @@ class AttendanceTab extends ConsumerWidget {
                             color: AppColors.borderNeon.withOpacity(0.3)))),
                 child: Row(
                   children: [
-                    Expanded(
-                        flex: 3,
-                        child: Text(a.employeeName,
-                            style: const TextStyle(
-                                color: AppColors.textPrimary, fontSize: 12))),
                     Expanded(
                         flex: 2,
                         child: Text(a.date,

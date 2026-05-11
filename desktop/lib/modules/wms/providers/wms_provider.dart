@@ -64,7 +64,6 @@ class WmsState {
 
   List<String> get categories =>
       ['All', ...inventory.map((i) => i.category).toSet().toList()];
-
   List<StockMutation> get filteredMutations {
     if (mutationTypeFilter == 'All') return mutations;
     return mutations.where((m) => m.type == mutationTypeFilter).toList();
@@ -82,9 +81,9 @@ class WmsNotifier extends StateNotifier<WmsState> {
     state = state.copyWith(isLoading: true);
     try {
       final results = await Future.wait([
-        _api.getProducts(), // inventory
-        _api.dio.get('/stock-opname'), // opname history
-        _api.dio.get('/stock-mutation'), // mutations
+        _api.getInventory(),
+        _api.getStockOpname(),
+        _api.getStockMutation(),
       ]);
 
       state = state.copyWith(
@@ -113,7 +112,7 @@ class WmsNotifier extends StateNotifier<WmsState> {
   Future<String?> submitOpname(
       String productId, int physicalStock, String? note) async {
     try {
-      await _api.dio.post('/stock-opname', data: {
+      await _api.submitStockOpname({
         'product_id': productId,
         'physical_stock': physicalStock,
         'note': note ?? '',

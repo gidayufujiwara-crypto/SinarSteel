@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/sales_report_tab.dart';
 import '../widgets/stock_report_tab.dart';
@@ -8,7 +9,6 @@ import '../widgets/attendance_report_tab.dart';
 
 class ReportScreen extends ConsumerStatefulWidget {
   const ReportScreen({super.key});
-
   @override
   ConsumerState<ReportScreen> createState() => _ReportScreenState();
 }
@@ -16,7 +16,6 @@ class ReportScreen extends ConsumerStatefulWidget {
 class _ReportScreenState extends ConsumerState<ReportScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
   @override
   void initState() {
     super.initState();
@@ -41,27 +40,23 @@ class _ReportScreenState extends ConsumerState<ReportScreen>
             unselectedLabelColor: AppColors.textDim,
             indicatorColor: AppColors.neonOrange,
             indicatorWeight: 2,
-            labelStyle: const TextStyle(
+            labelStyle: GoogleFonts.rajdhani(
                 fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 1),
             tabs: const [
               Tab(text: 'PENJUALAN'),
               Tab(text: 'STOK'),
               Tab(text: 'PENGIRIMAN'),
-              Tab(text: 'ABSENSI'),
+              Tab(text: 'ABSENSI')
             ],
           ),
         ),
         Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: const [
-              SalesReportTab(),
-              StockReportTab(),
-              DeliveryReportTab(),
-              AttendanceReportTab(),
-            ],
-          ),
-        ),
+            child: TabBarView(controller: _tabController, children: const [
+          SalesReportTab(),
+          StockReportTab(),
+          DeliveryReportTab(),
+          AttendanceReportTab()
+        ])),
       ],
     );
   }

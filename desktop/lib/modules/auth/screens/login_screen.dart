@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/auth/auth_provider.dart';
-import '../../../core/theme/app_theme.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/auth/auth_provider.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/logo_cache.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -14,6 +16,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _showPassword = false;
+  String? _logoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLogo();
+  }
+
+  Future<void> _loadLogo() async {
+    final url = await LogoCache.get();
+    if (mounted) {
+      setState(() => _logoUrl = url);
+    }
+  }
 
   @override
   void dispose() {
@@ -32,14 +48,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-
     if (authState.isLoading) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: CircularProgressIndicator(color: AppColors.neonCyan),
         ),
       );
     }
+
+    const baseUrl = 'http://127.0.0.1:8000';
+    final fullUrl = (_logoUrl != null && _logoUrl!.isNotEmpty)
+        ? (_logoUrl!.startsWith('http') ? _logoUrl! : '$baseUrl/$_logoUrl')
+        : null;
 
     return Scaffold(
       body: Center(
@@ -53,32 +73,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 width: 80,
                 height: 80,
                 decoration: BoxDecoration(
-                  color: AppColors.neonCyan,
+                  color:
+                      fullUrl != null ? Colors.transparent : AppColors.neonCyan,
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.neonCyan.withOpacity(0.5),
-                      blurRadius: 30,
-                    ),
+                        color: AppColors.neonCyan.withOpacity(0.5),
+                        blurRadius: 30),
                   ],
                 ),
-                child: const Center(
-                  child: Text(
-                    'S',
-                    style: TextStyle(
-                      fontSize: 42,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.bgDark,
-                    ),
-                  ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: fullUrl != null
+                      ? Image.network(fullUrl,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _buildFallback())
+                      : _buildFallback(),
                 ),
               ),
               const SizedBox(height: 20),
 
               // Brand
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(
+              Text.rich(
+                TextSpan(
+                  style: GoogleFonts.orbitron(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 4,
@@ -90,21 +110,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         color: AppColors.neonCyan,
                         shadows: [
                           Shadow(
-                            color: AppColors.neonCyan.withOpacity(0.8),
-                            blurRadius: 20,
-                          ),
+                              color: AppColors.neonCyan.withOpacity(0.8),
+                              blurRadius: 20),
                         ],
                       ),
                     ),
+                    const TextSpan(text: ' '),
                     TextSpan(
                       text: 'STEEL',
                       style: TextStyle(
                         color: AppColors.neonOrange,
                         shadows: [
                           Shadow(
-                            color: AppColors.neonOrange.withOpacity(0.8),
-                            blurRadius: 20,
-                          ),
+                              color: AppColors.neonOrange.withOpacity(0.8),
+                              blurRadius: 20),
                         ],
                       ),
                     ),
@@ -112,13 +131,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Sistem Manajemen Toko Besi',
                 style: TextStyle(
-                  color: AppColors.textDim,
-                  fontSize: 14,
-                  letterSpacing: 1,
-                ),
+                    color: AppColors.textDim, fontSize: 14, letterSpacing: 1),
               ),
               const SizedBox(height: 48),
 
@@ -132,7 +148,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 child: Column(
                   children: [
-                    // Error
                     if (authState.error != null)
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -141,8 +156,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           color: AppColors.neonPink.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: AppColors.neonPink.withOpacity(0.3),
-                          ),
+                              color: AppColors.neonPink.withOpacity(0.3)),
                         ),
                         child: Row(
                           children: [
@@ -150,37 +164,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 color: AppColors.neonPink, size: 18),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                authState.error!,
-                                style: const TextStyle(
-                                    color: AppColors.neonPink, fontSize: 13),
-                              ),
+                              child: Text(authState.error!,
+                                  style: const TextStyle(
+                                      color: AppColors.neonPink, fontSize: 13)),
                             ),
                           ],
                         ),
                       ),
-
-                    // Username
                     TextField(
                       controller: _usernameController,
                       style: const TextStyle(color: AppColors.textPrimary),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'USERNAME',
-                        prefixIcon: Icon(Icons.person,
+                        prefixIcon: const Icon(Icons.person,
                             color: AppColors.textDim, size: 18),
-                        border: OutlineInputBorder(),
-                        enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: AppColors.borderNeon),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: AppColors.neonCyan),
-                        ),
+                        border: const OutlineInputBorder(),
+                        enabledBorder: const OutlineInputBorder(
+                            borderSide:
+                                BorderSide(color: AppColors.borderNeon)),
+                        focusedBorder: const OutlineInputBorder(
+                            borderSide: BorderSide(color: AppColors.neonCyan)),
                       ),
                       onSubmitted: (_) => _login(),
                     ),
                     const SizedBox(height: 16),
-
-                    // Password
                     TextField(
                       controller: _passwordController,
                       obscureText: !_showPassword,
@@ -191,28 +198,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             color: AppColors.textDim, size: 18),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _showPassword
-                                ? Icons.visibility_off
-                                : Icons.visibility,
-                            color: AppColors.textDim,
-                            size: 18,
-                          ),
+                              _showPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: AppColors.textDim,
+                              size: 18),
                           onPressed: () =>
                               setState(() => _showPassword = !_showPassword),
                         ),
                         border: const OutlineInputBorder(),
                         enabledBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: AppColors.borderNeon),
-                        ),
+                            borderSide:
+                                BorderSide(color: AppColors.borderNeon)),
                         focusedBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: AppColors.neonCyan),
-                        ),
+                            borderSide: BorderSide(color: AppColors.neonCyan)),
                       ),
                       onSubmitted: (_) => _login(),
                     ),
                     const SizedBox(height: 24),
-
-                    // Button
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -222,15 +225,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           foregroundColor: AppColors.bgDark,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                          ),
+                              borderRadius: BorderRadius.circular(6)),
                         ),
-                        child: const Text(
+                        child: Text(
                           'MASUK',
-                          style: TextStyle(
+                          style: GoogleFonts.orbitron(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 2,
+                            color: AppColors.bgDark,
                           ),
                         ),
                       ),
@@ -238,18 +241,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 24),
               Text(
                 '© 2026 SinarSteel v1.2.0',
                 style: TextStyle(
-                  color: AppColors.textDim.withOpacity(0.5),
-                  fontSize: 11,
-                ),
+                    color: AppColors.textDim.withOpacity(0.5), fontSize: 11),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFallback() {
+    return Center(
+      child: Text(
+        'SS',
+        style: GoogleFonts.orbitron(
+            fontSize: 42, fontWeight: FontWeight.w900, color: AppColors.bgDark),
       ),
     );
   }
